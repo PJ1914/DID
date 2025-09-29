@@ -53,6 +53,7 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
     error NoFees();
     error WithdrawalFailed();
     bytes32 public constant WALLET_ADMIN_ROLE = keccak256("WALLET_ADMIN_ROLE");
+    
     bytes32 public constant PAYMASTER_ROLE = keccak256("PAYMASTER_ROLE");
 
     enum WalletType {
