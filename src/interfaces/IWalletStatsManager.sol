@@ -11,14 +11,9 @@ interface IWalletStatsManager {
         uint256 lastOpTimestamp;
     }
 
-    function recordUserOp(
-        address wallet,
-        bool success,
-        uint256 gasUsed,
-        uint256 feesPaid
-    ) external;
+    event UserOpRecorded(address indexed wallet, bool success, uint256 gasUsed, uint256 feePaid, uint256 totalOps);
 
-    function getStats(
-        address wallet
-    ) external view returns (UserOpStats memory);
+    function recordUserOp(address wallet, bool success, uint256 gasUsed, uint256 feePaid) external;
+
+    function getStats(address wallet) external view returns (UserOpStats memory);
 }

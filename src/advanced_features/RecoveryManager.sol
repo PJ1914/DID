@@ -1,26 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import {IVerificationLogger} from "../interfaces/IVerificationLogger.sol";
+import {IGuardianManager} from "../interfaces/IGuardianManager.sol";
 import {IRecoveryManager} from "../interfaces/IRecoveryManager.sol";
-import "../interfaces/IVerificationLogger.sol";
-import "../interfaces/IGuardianManager.sol";
 
 contract RecoveryManager is IRecoveryManager {
-    error InvalidParam();
-    error RecoveryNotActive();
-    error DelayNotMet();
+    error InvalidAddress();
     error NotGuardian();
-    error ThresholdNotMet();
+    error RecoveryAlreadyActive(address wallet);
+    error RecoveryNotPending(uint256 recoveryId);
+    error AlreadyConfirmed(uint256 recoveryId, address guardian);
+    error DelayNotElapsed(uint256 recoveryId, uint256 executeAfter);
+    error ThresholdNotMet(uint256 recoveryId, uint256 confirmations, uint256 required);
+    error MismatchedWalletOrOwner();
+    error NoGuardiansConfigured();
+    error Unauthorized();
 
-    IVerificationLogger public immutable logger;
-    IGuardianManager public immutable guardianManager;
+    IVerificationLogger public immutable VERIFICATION_LOGGER;
+    IGuardianManager public immutable GUARDIAN_MANAGER;
 
-    mapping(address => Recovery[]) public recoveries;
-    uint256 public recoveryCounter;
+    uint256 private nextRecoveryId;
 
-    constructor(address _logger, address _guardianManager) {
-        logger = IVerificationLogger(_logger);
-        guardianManager = IGuardianManager(_guardianManager);
+    mapping(uint256 => RecoveryDetails) private recoveries;
+    mapping(uint256 => mapping(address => bool)) private confirmations;
+    mapping(address => uint256[]) private walletRecoveries;
+    mapping(address => uint256) private activeRecoveryForWallet;
+
+    constructor(address logger, address guardianManager_) {
+        if (logger == address(0)) revert InvalidAddress();
+        if (guardianManager_ == address(0)) revert InvalidAddress();
+
+        VERIFICATION_LOGGER = IVerificationLogger(logger);
+        GUARDIAN_MANAGER = IGuardianManager(guardianManager_);
     }
 
     function requestRecovery(
@@ -28,100 +40,135 @@ contract RecoveryManager is IRecoveryManager {
         address newOwner,
         string calldata reason,
         uint256 delay,
-        address owner,
+        address currentOwner,
         address guardian
     ) external override returns (uint256) {
-        if (
-            wallet == address(0) ||
-            newOwner == address(0) ||
-            owner == address(0) ||
-            guardian == address(0)
-        ) {
-            revert InvalidParam();
+        if (wallet == address(0) || newOwner == address(0) || currentOwner == address(0) || guardian == address(0)) {
+            revert InvalidAddress();
         }
-        if (!guardianManager.isGuardian(owner, guardian)) revert NotGuardian();
+        if (guardian != msg.sender) revert Unauthorized();
+        if (newOwner == currentOwner) revert InvalidAddress();
+        if (!GUARDIAN_MANAGER.isGuardian(currentOwner, guardian)) {
+            revert NotGuardian();
+        }
+        if (activeRecoveryForWallet[wallet] != 0) {
+            revert RecoveryAlreadyActive(wallet);
+        }
 
-        recoveryCounter++;
-        uint256 recoveryId = recoveryCounter;
+        address[] memory guardians = GUARDIAN_MANAGER.getGuardians(currentOwner);
+        uint256 totalGuardians = guardians.length;
+        if (totalGuardians == 0) revert NoGuardiansConfigured();
 
-        Recovery memory newRecovery = Recovery({
-            id: recoveryId,
-            wallet: wallet,
-            newOwner: newOwner,
-            approvedGuardians: new address[](1),
-            requestedAt: block.timestamp,
-            executeAfter: block.timestamp + delay,
-            isExecuted: false,
-            isCancelled: false,
-            reason: reason
-        });
+        uint256 recoveryId = ++nextRecoveryId;
+        uint64 executeAfter = uint64(block.timestamp + delay);
 
-        newRecovery.approvedGuardians[0] = guardian;
-        recoveries[wallet].push(newRecovery);
+        RecoveryDetails storage details = recoveries[recoveryId];
+        details.id = recoveryId;
+        details.wallet = wallet;
+        details.currentOwner = currentOwner;
+        details.newOwner = newOwner;
+        details.initiator = guardian;
+        details.requestedAt = uint64(block.timestamp);
+        details.executeAfter = executeAfter;
+        details.confirmations = 1;
+        details.totalGuardians = uint8(totalGuardians);
+        details.status = RecoveryStatus.Pending;
 
-        emit RRQ(recoveryId, wallet, newOwner);
+        confirmations[recoveryId][guardian] = true;
+        walletRecoveries[wallet].push(recoveryId);
+        activeRecoveryForWallet[wallet] = recoveryId;
+
+        emit RecoveryRequested(recoveryId, wallet, newOwner, guardian, reason, executeAfter);
+
+        VERIFICATION_LOGGER.logEvent("RREQ", wallet, keccak256(abi.encode(recoveryId, wallet, newOwner, currentOwner)));
+
         return recoveryId;
     }
 
-    function confirmRecovery(
-        uint256 recoveryId,
-        address wallet,
-        address owner,
-        address guardian
-    ) external override {
-        Recovery[] storage walletRecoveries = recoveries[wallet];
-        if (!(recoveryId > 0 && recoveryId <= walletRecoveries.length))
-            revert InvalidParam();
-        Recovery storage recovery = walletRecoveries[recoveryId - 1];
-        if (recovery.isExecuted || recovery.isCancelled)
-            revert RecoveryNotActive();
-        if (!guardianManager.isGuardian(owner, guardian)) revert NotGuardian();
+    function confirmRecovery(uint256 recoveryId, address wallet, address currentOwner, address guardian)
+        external
+        override
+    {
+        if (guardian == address(0)) revert InvalidAddress();
+        if (guardian != msg.sender) revert Unauthorized();
 
-        // Check if already approved
-        for (uint256 i = 0; i < recovery.approvedGuardians.length; i++) {
-            if (recovery.approvedGuardians[i] == guardian)
-                revert InvalidParam();
+        RecoveryDetails storage details = recoveries[recoveryId];
+        _validatePending(details, wallet, currentOwner);
+
+        if (!GUARDIAN_MANAGER.isGuardian(currentOwner, guardian)) {
+            revert NotGuardian();
+        }
+        if (confirmations[recoveryId][guardian]) {
+            revert AlreadyConfirmed(recoveryId, guardian);
         }
 
-        // Add guardian approval
-        address[] memory newApprovals = new address[](
-            recovery.approvedGuardians.length + 1
-        );
-        for (uint256 i = 0; i < recovery.approvedGuardians.length; i++) {
-            newApprovals[i] = recovery.approvedGuardians[i];
+        confirmations[recoveryId][guardian] = true;
+        details.confirmations += 1;
+
+        emit RecoveryConfirmed(recoveryId, guardian, details.confirmations);
+        VERIFICATION_LOGGER.logEvent("RCFM", wallet, keccak256(abi.encode(recoveryId, guardian, details.confirmations)));
+    }
+
+    function executeRecovery(uint256 recoveryId, address wallet, address currentOwner)
+        external
+        override
+        returns (address)
+    {
+        RecoveryDetails storage details = recoveries[recoveryId];
+        _validatePending(details, wallet, currentOwner);
+
+        if (block.timestamp < details.executeAfter) {
+            revert DelayNotElapsed(recoveryId, details.executeAfter);
         }
-        newApprovals[recovery.approvedGuardians.length] = guardian;
-        recovery.approvedGuardians = newApprovals;
 
-        emit RCF(recoveryId, wallet, guardian);
+        uint256 required = _requiredConfirmations(details.totalGuardians);
+        if (details.confirmations < required) {
+            revert ThresholdNotMet(recoveryId, details.confirmations, required);
+        }
+
+        details.status = RecoveryStatus.Executed;
+        activeRecoveryForWallet[wallet] = 0;
+
+        emit RecoveryExecuted(recoveryId, wallet, details.newOwner);
+        VERIFICATION_LOGGER.logEvent("REXE", wallet, keccak256(abi.encode(recoveryId, details.newOwner)));
+
+        return details.newOwner;
     }
 
-    function executeRecovery(
-        uint256 recoveryId,
-        address wallet,
-        address owner
-    ) external override returns (address newOwner) {
-        Recovery[] storage walletRecoveries = recoveries[wallet];
-        if (!(recoveryId > 0 && recoveryId <= walletRecoveries.length))
-            revert InvalidParam();
+    function cancelRecovery(uint256 recoveryId, address wallet, address currentOwner) external override {
+        RecoveryDetails storage details = recoveries[recoveryId];
+        _validatePending(details, wallet, currentOwner);
 
-        Recovery storage recovery = walletRecoveries[recoveryId - 1];
-        if (recovery.isExecuted || recovery.isCancelled)
-            revert RecoveryNotActive();
-        if (block.timestamp < recovery.executeAfter) revert DelayNotMet();
+        if (msg.sender != currentOwner) revert Unauthorized();
 
-        (, uint256 threshold, ) = guardianManager.getGuardianSet(owner);
-        if (recovery.approvedGuardians.length < threshold)
-            revert ThresholdNotMet();
+        details.status = RecoveryStatus.Cancelled;
+        activeRecoveryForWallet[wallet] = 0;
 
-        recovery.isExecuted = true;
-        newOwner = recovery.newOwner;
-        emit REX(recoveryId, wallet, owner);
+        emit RecoveryCancelled(recoveryId, wallet);
+        VERIFICATION_LOGGER.logEvent("RCAN", wallet, keccak256(abi.encode(recoveryId, wallet)));
     }
 
-    function getRecoveriesCount(
-        address wallet
-    ) external view override returns (uint256) {
-        return recoveries[wallet].length;
+    function getRecovery(uint256 recoveryId) external view override returns (RecoveryDetails memory) {
+        return recoveries[recoveryId];
+    }
+
+    function getRecoveriesCount(address wallet) external view override returns (uint256) {
+        return walletRecoveries[wallet].length;
+    }
+
+    function _validatePending(RecoveryDetails storage details, address wallet, address currentOwner) private view {
+        if (details.wallet != wallet || details.currentOwner != currentOwner) {
+            revert MismatchedWalletOrOwner();
+        }
+        if (details.status != RecoveryStatus.Pending) {
+            revert RecoveryNotPending(details.id);
+        }
+    }
+
+    function _requiredConfirmations(uint8 totalGuardians) private pure returns (uint256) {
+        // Majority quorum: floor(total/2) + 1
+        uint256 total = uint256(totalGuardians);
+        if (total == 0) return 0;
+        return (total / 2) + 1;
     }
 }

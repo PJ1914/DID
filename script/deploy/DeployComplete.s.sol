@@ -6,7 +6,6 @@ import {DeployLib} from "./DeployLib.sol";
 import {VerificationLogger} from "../../src/core/VerificationLogger.sol";
 import {TrustScore} from "../../src/advanced_features/TrustScore.sol";
 import {CertificateManager} from "../../src/organizations/CertificateManager.sol";
-import {ZkKeyRegistry} from "../../src/privacy_cross-chain/ZkKeyRegistry.sol";
 
 /// One-shot script: deploy everything and wire roles.
 /// Usage:
@@ -49,12 +48,12 @@ contract DeployComplete is Script {
         console.log("CertificateManager:", address(cert));
 
         // 5) Deploy Guardian + Anchor
-        (, , ZkKeyRegistry zkReg) = DeployLib.deployGuardianAnchor(
+        DeployLib.deployGuardian(
             address(core.logger),
             address(core.registry),
             address(core.trust)
         );
-        console.log("ZkKeyRegistry:", address(zkReg));
+        // Cross-chain anchor & key registry removed.
 
         // 6) Deploy Governance (DisputeResolution)
         DeployLib.deployGovernance(address(core.logger), address(core.trust));

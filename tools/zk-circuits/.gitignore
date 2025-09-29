@@ -1,0 +1,12 @@
+node_modules/
+proofs/
+ptau/
+build/**/*.zkey
+build/**/*.wtns
+build/**/*.r1cs
+build/**/*.wasm
+build/**/*.sym
+*.ptau
+*.zkey
+*.r1cs
+*.wtns

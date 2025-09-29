@@ -1,5 +1,7 @@
 [profile.default]
 src = "src"
+test = "tests"
+script = "scripts"
 out = "out"
 libs = ["lib"]
 viaIR = true
@@ -34,7 +36,7 @@ exclude_lints = [
 
 [profile.coverage]
 src = "src"
-test = "test"
+test = "tests"
 libs = ["lib"]
 # Use minimal IR only when necessary from CLI (--ir-minimum) to avoid mapping skew.
 fs_permissions = [{ access = "read", path = "./broadcast" }]

@@ -2,55 +2,56 @@
 pragma solidity ^0.8.19;
 
 interface IRecoveryManager {
-    struct Recovery {
-        uint256 id;
-        address wallet;
-        address newOwner;
-        address[] approvedGuardians;
-        uint256 requestedAt;
-        uint256 executeAfter;
-        bool isExecuted;
-        bool isCancelled;
-        string reason;
+    enum RecoveryStatus {
+        Pending,
+        Executed,
+        Cancelled
     }
 
-    event RRQ(
+    struct RecoveryDetails {
+        uint256 id;
+        address wallet;
+        address currentOwner;
+        address newOwner;
+        address initiator;
+        uint64 requestedAt;
+        uint64 executeAfter;
+        uint8 confirmations;
+        uint8 totalGuardians;
+        RecoveryStatus status;
+    }
+
+    event RecoveryRequested(
         uint256 indexed recoveryId,
         address indexed wallet,
-        address indexed newOwner
+        address indexed newOwner,
+        address initiator,
+        string reason,
+        uint256 executeAfter
     );
-    event RCF(
-        uint256 indexed recoveryId,
-        address indexed wallet,
-        address indexed guardian
-    );
-    event REX(
-        uint256 indexed recoveryId,
-        address indexed wallet,
-        address indexed oldOwner
-    );
+
+    event RecoveryConfirmed(uint256 indexed recoveryId, address indexed guardian, uint256 confirmations);
+
+    event RecoveryExecuted(uint256 indexed recoveryId, address indexed wallet, address indexed newOwner);
+
+    event RecoveryCancelled(uint256 indexed recoveryId, address indexed wallet);
 
     function requestRecovery(
         address wallet,
         address newOwner,
         string calldata reason,
         uint256 delay,
-        address owner,
+        address currentOwner,
         address guardian
     ) external returns (uint256);
 
-    function confirmRecovery(
-        uint256 recoveryId,
-        address wallet,
-        address owner,
-        address guardian
-    ) external;
+    function confirmRecovery(uint256 recoveryId, address wallet, address currentOwner, address guardian) external;
 
-    function executeRecovery(
-        uint256 recoveryId,
-        address wallet,
-        address owner
-    ) external returns (address newOwner);
+    function executeRecovery(uint256 recoveryId, address wallet, address currentOwner) external returns (address);
+
+    function cancelRecovery(uint256 recoveryId, address wallet, address currentOwner) external;
+
+    function getRecovery(uint256 recoveryId) external view returns (RecoveryDetails memory);
 
     function getRecoveriesCount(address wallet) external view returns (uint256);
 }

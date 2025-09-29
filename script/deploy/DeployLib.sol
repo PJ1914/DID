@@ -11,8 +11,6 @@ import {OfflineVerificationManager} from "../../src/verification/OfflineVerifica
 import {MobileVerificationInterface} from "../../src/verification/MobileVerificationInterface.sol";
 import {CertificateManager} from "../../src/organizations/CertificateManager.sol";
 import {GuardianManager} from "../../src/advanced_features/GuardianManager.sol";
-import {GlobalCredentialAnchor} from "../../src/privacy_cross-chain/GlobalCredentialAnchor.sol";
-import {ZkKeyRegistry} from "../../src/privacy_cross-chain/ZkKeyRegistry.sol";
 import {DisputeResolution} from "../../src/governance/DisputeResolution.sol";
 
 library DeployLib {
@@ -78,22 +76,12 @@ library DeployLib {
         cert = new CertificateManager(logger, registry, trust);
     }
 
-    function deployGuardianAnchor(
+    function deployGuardian(
         address logger,
         address registry,
         address trust
-    )
-        internal
-        returns (
-            GuardianManager guardian,
-            GlobalCredentialAnchor anchor,
-            ZkKeyRegistry zkReg
-        )
-    {
+    ) internal returns (GuardianManager guardian) {
         guardian = new GuardianManager(logger, registry, trust);
-        anchor = new GlobalCredentialAnchor(logger);
-        zkReg = new ZkKeyRegistry(msg.sender);
-        anchor.setZkKeyRegistry(address(zkReg));
     }
 
     function deployGovernance(

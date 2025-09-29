@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import {Script, console} from "forge-std/Script.sol";
 import {DevOpsTools} from "@foundry-devops/src/DevOpsTools.sol";
 import {DeployLib} from "./DeployLib.sol";
-import {ZkKeyRegistry} from "../../src/privacy_cross-chain/ZkKeyRegistry.sol";
 
 /// Deploys core + common modules in one go. Safe to run on Anvil.
 contract DeployUmbrella is Script {
@@ -42,12 +41,12 @@ contract DeployUmbrella is Script {
         );
 
         // Guardian + Anchor
-        (, , ZkKeyRegistry zkReg) = DeployLib.deployGuardianAnchor(
+        DeployLib.deployGuardian(
             address(core.logger),
             address(core.registry),
             address(core.trust)
         );
-        console.log("ZkKeyRegistry:", address(zkReg));
+        // Removed cross-chain anchor / key registry deployment.
 
         // Governance
         DeployLib.deployGovernance(address(core.logger), address(core.trust));

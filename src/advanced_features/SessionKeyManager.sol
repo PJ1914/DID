@@ -1,39 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "../interfaces/IVerificationLogger.sol";
+import {IVerificationLogger} from "../interfaces/IVerificationLogger.sol";
 import {ISessionKeyManager} from "../interfaces/ISessionKeyManager.sol";
 
-contract SessionKeyManager is
-    AccessControl,
-    ReentrancyGuard,
-    ISessionKeyManager
-{
-    error NotOwner();
-    error InvalidParam();
-    error NotManager();
+contract SessionKeyManager is ISessionKeyManager {
+    error NotAuthorized();
+    error InvalidSessionKey();
 
-    bytes32 public constant ADMIN_ROLE = keccak256("SESSION_ADMIN_ROLE");
+    IVerificationLogger public immutable VERIFICATION_LOGGER;
+    address public immutable AUTHORIZED_MANAGER;
 
-    IVerificationLogger public immutable logger;
-    address public immutable authorizedManager;
+    mapping(address => address[]) private walletKeys;
+    mapping(address => mapping(address => SessionKeyConfig)) private keyConfigs;
 
-    mapping(address => mapping(address => SessionKey)) public sessionKeys; // wallet => sessionKey => data
-    mapping(address => address[]) public walletSessionKeys;
-
-    constructor(address _logger, address _manager) {
-        if (_logger == address(0) || _manager == address(0))
-            revert InvalidParam();
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
-        logger = IVerificationLogger(_logger);
-        authorizedManager = _manager;
+    constructor(address logger, address manager) {
+        if (logger == address(0) || manager == address(0)) {
+            revert InvalidSessionKey();
+        }
+        VERIFICATION_LOGGER = IVerificationLogger(logger);
+        AUTHORIZED_MANAGER = manager;
     }
 
     modifier onlyManager() {
-        if (msg.sender != authorizedManager) revert NotManager();
+        if (msg.sender != AUTHORIZED_MANAGER) revert NotAuthorized();
         _;
     }
 
@@ -44,66 +34,68 @@ contract SessionKeyManager is
         uint256 spendingLimit,
         string[] calldata allowedFunctions,
         address[] calldata allowedContracts
-    ) external override nonReentrant onlyManager {
-        if (wallet == address(0) || sessionKey == address(0))
-            revert InvalidParam();
-        if (validUntil <= block.timestamp) revert InvalidParam();
+    ) external override onlyManager {
+        if (wallet == address(0) || sessionKey == address(0)) {
+            revert InvalidSessionKey();
+        }
 
-        sessionKeys[wallet][sessionKey] = SessionKey({
-            keyAddress: sessionKey,
-            validUntil: validUntil,
-            spendingLimit: spendingLimit,
-            spentAmount: 0,
-            isActive: true,
-            allowedFunctions: allowedFunctions,
-            allowedContracts: allowedContracts
-        });
+        SessionKeyConfig storage config = keyConfigs[wallet][sessionKey];
+        if (!config.active) {
+            walletKeys[wallet].push(sessionKey);
+        }
 
-        walletSessionKeys[wallet].push(sessionKey);
+        config.active = true;
+        config.validUntil = uint64(validUntil);
+        config.spendingLimit = spendingLimit;
+        config.allowedFunctions = allowedFunctions;
+        config.allowedContracts = allowedContracts;
 
-        logger.logEvent(
-            "SKA",
-            msg.sender,
-            keccak256(abi.encodePacked(wallet, sessionKey, validUntil))
+        emit SessionKeyAdded(wallet, sessionKey, uint64(validUntil), spendingLimit);
+        VERIFICATION_LOGGER.logEvent(
+            "SKADD", wallet, keccak256(abi.encode(wallet, sessionKey, validUntil, spendingLimit))
         );
-        emit SKA(wallet, sessionKey, validUntil);
     }
 
-    function revokeSessionKey(
-        address wallet,
-        address sessionKey
-    ) external override nonReentrant onlyManager {
-        if (wallet == address(0) || sessionKey == address(0))
-            revert InvalidParam();
-        if (!sessionKeys[wallet][sessionKey].isActive) revert InvalidParam();
+    function revokeSessionKey(address wallet, address sessionKey) external override onlyManager {
+        SessionKeyConfig storage config = keyConfigs[wallet][sessionKey];
+        if (!config.active) revert InvalidSessionKey();
 
-        sessionKeys[wallet][sessionKey].isActive = false;
-        logger.logEvent(
-            "SKR",
-            msg.sender,
-            keccak256(abi.encodePacked(wallet, sessionKey))
-        );
-        emit SKR(wallet, sessionKey);
+        config.active = false;
+        config.validUntil = uint64(block.timestamp);
+
+        emit SessionKeyRevoked(wallet, sessionKey);
+        VERIFICATION_LOGGER.logEvent("SKRM", wallet, keccak256(abi.encode(wallet, sessionKey)));
     }
 
-    function isSessionKeyValid(
-        address wallet,
-        address sessionKey
-    ) external view override returns (bool) {
-        SessionKey memory key = sessionKeys[wallet][sessionKey];
-        return key.isActive && block.timestamp <= key.validUntil;
+    function getSessionKeys(address wallet) external view override returns (address[] memory) {
+        return walletKeys[wallet];
     }
 
-    function getSessionKeys(
-        address wallet
-    ) external view override returns (address[] memory) {
-        return walletSessionKeys[wallet];
+    function isSessionKeyValid(address wallet, address sessionKey) external view override returns (bool) {
+        SessionKeyConfig storage config = keyConfigs[wallet][sessionKey];
+        if (!config.active) return false;
+        if (config.validUntil != 0 && config.validUntil < block.timestamp) {
+            return false;
+        }
+        if (config.spendingLimit != 0 && config.spent >= config.spendingLimit) {
+            return false;
+        }
+        return true;
     }
 
-    function getSessionKey(
-        address wallet,
-        address sessionKey
-    ) external view override returns (SessionKey memory) {
-        return sessionKeys[wallet][sessionKey];
+    function getSessionKeyConfig(address wallet, address sessionKey)
+        external
+        view
+        override
+        returns (SessionKeyConfig memory)
+    {
+        return keyConfigs[wallet][sessionKey];
+    }
+
+    function _consumeAllowance(address wallet, address sessionKey, uint256 amount) external onlyManager {
+        SessionKeyConfig storage config = keyConfigs[wallet][sessionKey];
+        if (!config.active) revert InvalidSessionKey();
+        if (config.spendingLimit == 0) return;
+        config.spent += amount;
     }
 }

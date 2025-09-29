@@ -1,22 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-/**
- * @title ITrustScore
- * @notice Interface for the TrustScore contract
- */
 interface ITrustScore {
-    function getTrustScore(address user) external view returns (uint256);
+    event TrustScoreUpdated(bytes32 indexed identityId, int256 delta, uint256 newScore, string reason);
 
-    function updateScoreForGaslessTransaction(address user) external;
+    function getScore(bytes32 identityId) external view returns (uint256);
 
-    function initializeUser(address user) external;
+    function increaseScore(bytes32 identityId, uint256 amount, string calldata reason) external;
 
-    function updateScore(
-        address user,
-        int256 delta,
-        string memory reason
-    ) external;
+    function decreaseScore(bytes32 identityId, uint256 amount, string calldata reason) external;
 
-    function unlockScore(address user) external;
+    function setScore(bytes32 identityId, uint256 amount, string calldata reason) external;
 }

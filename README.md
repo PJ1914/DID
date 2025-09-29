@@ -7,7 +7,7 @@ This repo uses Foundry for builds/tests and OpenZeppelin libraries for security 
 ## ✨ Highlights
 - Modular identity and verification managers (Aadhaar, Income, Face, Mobile, Offline)
 - Organization-issued ERC721 certificates (badges/recognitions system removed to streamline scope)
-- Cross-chain privacy primitives: Global Credential Anchor and CrossChainManager
+- (Cross-chain components removed for simplification in current version)
 - Account abstraction (ERC-4337) modular smart account with pluggable modules (session keys, subscriptions)
 - Transparent audit trail via `VerificationLogger` + standardized events & custom errors
 - Dispute Resolution module retained (tokenless) — GovernanceManager & SystemToken removed
@@ -24,10 +24,7 @@ Core building blocks:
 - Organizations
   - `CertificateManager` (ERC721) — issue / revoke certificates (configurable trust score rewards)
   - `OrganizationRegistryProxy` + `OrganizationLogic` + `OrganizationView`
-- Privacy & Cross-Chain
-  - `GlobalCredentialAnchor` — anchor/merkle roots for credentials
-  - `CrossChainManager` — cross-chain sync/control utilities
-  - `PrivacyManager` — privacy controls and access policy helpers
+- Privacy (cross-chain components removed in this iteration)
 - Advanced Features
   - `AlchemyGasManager` — gas sponsorship via third-party paymasters
   - `IdentityEntryPoint`, `IdentityModularAccount`, `IdentityAccountFactory` — ERC-4337 account abstraction components
@@ -145,8 +142,7 @@ Usage examples (env: RPC_URL, PRIVATE_KEY):
 - Organizations
   - `CertificateManager` — ERC721 credentials (configurable trust score deltas)
   - `OrganizationRegistryProxy` + `OrganizationLogic` + `OrganizationView`
-- Privacy & Cross Chain
-  - `GlobalCredentialAnchor`, `CrossChainManager`, `PrivacyManager`
+- ZK Proof Management
   - `ZKProofManager` — manage Groth16 proof types and anchored Merkle roots
 - Account Abstraction + Gas
   - `IdentityEntryPoint`, `IdentityModularAccount`, `IdentityAccountFactory`
@@ -201,6 +197,7 @@ For deep design notes see `docs/modular_account_architecture.md`.
   - A: Yes. You can reintroduce a bond mechanism by adding a generic ERC20 interface and checks in DisputeResolution if needed.
 
 ## Repository Guide
+- [`docs/system_overview.md`](docs/system_overview.md) — high-level architecture, tooling, and automation map
 - `DEPLOYMENT_GUIDE.md` — step-by-step deployment
 - `FINAL_REVIEW_SUMMARY.md` — high-level audit/review notes
 - `SECURITY_FIXES_SUMMARY.md` — security-focused changes

@@ -1,374 +1,375 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "../interfaces/IEntryPoint.sol";
-import "../interfaces/ITrustScore.sol";
-import "../interfaces/IVerificationLogger.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IVerificationLogger} from "../interfaces/IVerificationLogger.sol";
+import {ITrustScore} from "../interfaces/ITrustScore.sol";
 
-/**
- * @title AlchemyGasManager
- * @notice Alchemy-compatible gas manager with Identity trust score integration
- * @dev Implements Alchemy's gas manager interface while adding trust-based sponsorship rules
- */
 contract AlchemyGasManager is AccessControl, ReentrancyGuard {
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    error InvalidAddress();
+    error InvalidRuleId();
+    error InvalidAmount();
+    error NotAllowed();
 
-    // Alchemy Gas Manager compatibility
-    address public immutable entryPoint;
-    ITrustScore public trustScore;
-    IVerificationLogger public verificationLogger;
+    bytes32 public constant ADMIN_ROLE = keccak256("ALCHEMY_ADMIN_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("ALCHEMY_OPERATOR_ROLE");
+    bytes32 public constant RULE_ONBOARDING = keccak256("ALCHEMY_RULE_ONBOARDING");
 
-    // Gas sponsorship rules
-    struct SponsorshipRule {
-        uint256 minTrustScore; // Minimum trust score required
-        uint256 maxGasPerOp; // Max gas per operation
-        uint256 maxGasPerDay; // Max gas per user per day
-        uint256 maxGasPerMonth; // Max gas per user per month
-        bool isActive; // Rule is active
-        string description; // Rule description
-    }
-
-    // Alchemy integration settings
     struct AlchemyConfig {
-        string policyId; // Alchemy policy ID
-        string appId; // Alchemy app ID
-        address alchemyPaymaster; // Alchemy paymaster address
-        bool useAlchemyBackend; // Use Alchemy's backend for gas estimation
-        uint256 maxSponsoredGas; // Max gas to sponsor via Alchemy
+        string policyId;
+        string appId;
+        address paymaster;
+        uint256 maxGasPerTx;
+        bool backendManaged;
     }
 
-    // State variables
-    AlchemyConfig public alchemyConfig;
-    mapping(bytes32 => SponsorshipRule) public sponsorshipRules;
-    mapping(address => mapping(uint256 => uint256)) public dailyGasUsed; // user => day => gas
-    mapping(address => mapping(uint256 => uint256)) public monthlyGasUsed; // user => month => gas
+    struct SponsorshipRule {
+        bool active;
+        uint256 minTrustScore;
+        uint256 maxDailyGas;
+        uint256 maxMonthlyGas;
+        uint256 maxPerTxGas;
+    }
+
+    struct Decision {
+        bool eligible;
+        bytes32 ruleId;
+        uint256 allowedGas;
+        bool onboarding;
+    }
+
+    IVerificationLogger public immutable VERIFICATION_LOGGER;
+    ITrustScore public immutable TRUST_SCORE;
+
+    AlchemyConfig public config;
+
+    mapping(bytes32 => SponsorshipRule) public rules;
+    mapping(bytes32 => bool) private knownRule;
+    bytes32[] private ruleOrder;
+
+    mapping(address => mapping(uint256 => uint256)) public dailyGasUsed;
+    mapping(address => mapping(uint256 => uint256)) public monthlyGasUsed;
     mapping(address => uint256) public totalGasSponsored;
-    mapping(address => bool) public whitelistedDApps;
 
-    // Onboarding support
-    mapping(address => uint256) public userOnboardingStart;
-    mapping(address => uint256) public onboardingGasUsed;
-    uint256 public onboardingGasAllowance;
+    uint256 public onboardingAllowance;
     uint256 public onboardingPeriod;
+    mapping(address => uint256) public onboardingStart;
+    mapping(address => uint256) public onboardingGasUsed;
 
-    // Events
-    event GasSponsored(
-        address indexed user,
-        address indexed dapp,
-        uint256 gasAmount,
-        uint256 trustScore,
-        string ruleUsed
+    mapping(bytes32 => bool) public dappWhitelist;
+    bool public enforceDappWhitelist;
+
+    event AlchemyConfigUpdated(
+        address indexed paymaster, string policyId, string appId, uint256 maxGasPerTx, bool backendManaged
     );
+
     event SponsorshipRuleUpdated(
         bytes32 indexed ruleId,
+        bool active,
         uint256 minTrustScore,
-        uint256 maxGasPerOp,
-        bool isActive
+        uint256 maxDailyGas,
+        uint256 maxMonthlyGas,
+        uint256 maxPerTxGas
     );
-    event AlchemyConfigUpdated(
-        string policyId,
-        string appId,
-        address paymaster
+
+    event GasSponsored(
+        bytes32 indexed identityId, address indexed user, bytes32 indexed ruleId, uint256 gasUsed, bool onboarding
     );
-    event OnboardingGasProvided(
-        address indexed user,
-        uint256 gasAmount,
-        uint256 remainingAllowance
-    );
+
+    event OnboardingStarted(address indexed user, uint256 timestamp);
+    event OnboardingSettingsUpdated(uint256 allowance, uint256 period);
+    event DappWhitelistUpdated(bytes32 indexed dappId, bool allowed, bool enforced);
 
     constructor(
-        address _entryPoint,
-        address _trustScore,
-        address _verificationLogger,
-        string memory _alchemyPolicyId,
-        string memory _alchemyAppId,
-        address _alchemyPaymaster
+        address admin,
+        address operator,
+        address trustScore,
+        address verificationLogger,
+        string memory policyId,
+        string memory appId,
+        address paymaster,
+        uint256 maxGasPerTx
     ) {
-        require(_entryPoint != address(0), "Invalid EntryPoint");
-        require(_trustScore != address(0), "Invalid TrustScore");
-        require(
-            _verificationLogger != address(0),
-            "Invalid VerificationLogger"
-        );
+        if (admin == address(0) || trustScore == address(0) || verificationLogger == address(0)) {
+            revert InvalidAddress();
+        }
 
-        entryPoint = _entryPoint;
-        trustScore = ITrustScore(_trustScore);
-        verificationLogger = IVerificationLogger(_verificationLogger);
+        VERIFICATION_LOGGER = IVerificationLogger(verificationLogger);
+        TRUST_SCORE = ITrustScore(trustScore);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
-        _grantRole(OPERATOR_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(ADMIN_ROLE, admin);
+        if (operator != address(0)) {
+            _grantRole(OPERATOR_ROLE, operator);
+        }
 
-        // Set up Alchemy configuration
-        alchemyConfig = AlchemyConfig({
-            policyId: _alchemyPolicyId,
-            appId: _alchemyAppId,
-            alchemyPaymaster: _alchemyPaymaster,
-            useAlchemyBackend: true,
-            maxSponsoredGas: 10000000 // 10M gas max
-        });
+        _updateConfig(policyId, appId, paymaster, maxGasPerTx, false);
 
-        // Default onboarding settings
-        onboardingGasAllowance = 2000000; // 2M gas for new users
+        onboardingAllowance = 2_000_000;
         onboardingPeriod = 7 days;
 
-        // Set up default sponsorship rules
-        _setupDefaultRules();
-    }
-
-    /**
-     * @dev Main function to check if gas should be sponsored (Alchemy compatible)
-     * @param user The user requesting gas sponsorship
-     * @param gasRequested Amount of gas requested
-     * @return shouldSponsor Whether to sponsor the gas
-     * @return maxGas Maximum gas to sponsor
-     * @return ruleUsed The rule that was applied
-     */
-    function shouldSponsorGas(
-        address user,
-        address,
-        /*dapp*/
-        uint256 gasRequested
-    )
-        external
-        view
-        returns (bool shouldSponsor, uint256 maxGas, string memory ruleUsed)
-    {
-        // Check onboarding eligibility first
-        if (_isUserOnboarding(user)) {
-            uint256 remainingOnboarding = onboardingGasAllowance -
-                onboardingGasUsed[user];
-            if (remainingOnboarding >= gasRequested) {
-                return (true, gasRequested, "ONBOARDING");
-            }
-        }
-
-        // Check trust score based rules
-        uint256 userTrustScore = trustScore.getTrustScore(user);
-
-        // Check each rule
-        bytes32[] memory ruleIds = _getActiveRuleIds();
-        for (uint256 i = 0; i < ruleIds.length; i++) {
-            bytes32 ruleId = ruleIds[i];
-            SponsorshipRule memory rule = sponsorshipRules[ruleId];
-
-            if (!rule.isActive) continue;
-            if (userTrustScore < rule.minTrustScore) continue;
-            if (gasRequested > rule.maxGasPerOp) continue;
-
-            // Check daily and monthly limits
-            uint256 currentDay = block.timestamp / 1 days;
-            uint256 currentMonth = block.timestamp / 30 days;
-
-            if (
-                dailyGasUsed[user][currentDay] + gasRequested >
-                rule.maxGasPerDay
-            ) continue;
-            if (
-                monthlyGasUsed[user][currentMonth] + gasRequested >
-                rule.maxGasPerMonth
-            ) continue;
-
-            return (true, gasRequested, rule.description);
-        }
-
-        return (false, 0, "NO_RULE_MATCHED");
-    }
-
-    /**
-     * @dev Execute gas sponsorship after UserOp execution
-     */
-    function recordGasSponsorship(
-        address user,
-        address dapp,
-        uint256 gasUsed,
-        string memory ruleUsed
-    ) external onlyRole(OPERATOR_ROLE) nonReentrant {
-        uint256 currentDay = block.timestamp / 1 days;
-        uint256 currentMonth = block.timestamp / 30 days;
-
-        // Update tracking
-        dailyGasUsed[user][currentDay] += gasUsed;
-        monthlyGasUsed[user][currentMonth] += gasUsed;
-        totalGasSponsored[user] += gasUsed;
-
-        // Handle onboarding tracking
-        if (
-            keccak256(abi.encodePacked(ruleUsed)) ==
-            keccak256(abi.encodePacked("ONBOARDING"))
-        ) {
-            if (userOnboardingStart[user] == 0) {
-                userOnboardingStart[user] = block.timestamp;
-            }
-            onboardingGasUsed[user] += gasUsed;
-
-            emit OnboardingGasProvided(
-                user,
-                gasUsed,
-                onboardingGasAllowance - onboardingGasUsed[user]
-            );
-        } else {
-            // Update trust score for responsible usage
-            trustScore.updateScoreForGaslessTransaction(user);
-        }
-
-        // Log the sponsorship
-        verificationLogger.logEvent(
-            "GAS_SPONSORED",
-            user,
-            keccak256(abi.encodePacked(dapp, gasUsed, ruleUsed))
-        );
-
-        emit GasSponsored(
-            user,
-            dapp,
-            gasUsed,
-            trustScore.getTrustScore(user),
-            ruleUsed
-        );
-    }
-
-    /**
-     * @dev Get Alchemy-compatible paymaster data
-     */
-    function getPaymasterData(
-        address user,
-        address dapp,
-        uint256 gasLimit
-    ) external view returns (bytes memory paymasterData) {
-        (bool shouldSponsor, uint256 maxGas, string memory ruleUsed) = this
-            .shouldSponsorGas(user, dapp, gasLimit);
-
-        if (!shouldSponsor) {
-            return "";
-        }
-
-        // Format paymaster data for Alchemy compatibility
-        return
-            abi.encodePacked(
-                alchemyConfig.alchemyPaymaster,
-                maxGas,
-                keccak256(abi.encodePacked(ruleUsed))
-            );
-    }
-
-    function _isUserOnboarding(address user) internal view returns (bool) {
-        if (userOnboardingStart[user] == 0) return true; // First time user
-        return
-            (block.timestamp - userOnboardingStart[user]) <= onboardingPeriod;
-    }
-
-    function _getActiveRuleIds() internal pure returns (bytes32[] memory) {
-        bytes32[] memory rules = new bytes32[](4);
-        rules[0] = keccak256("HIGH_TRUST");
-        rules[1] = keccak256("MEDIUM_TRUST");
-        rules[2] = keccak256("LOW_TRUST");
-        rules[3] = keccak256("BASIC_USER");
-        return rules;
-    }
-
-    function _setupDefaultRules() internal {
-        // High trust users (90+ score)
-        sponsorshipRules[keccak256("HIGH_TRUST")] = SponsorshipRule({
-            minTrustScore: 90,
-            maxGasPerOp: 1000000, // 1M gas per op
-            maxGasPerDay: 10000000, // 10M gas per day
-            maxGasPerMonth: 200000000, // 200M gas per month
-            isActive: true,
-            description: "HIGH_TRUST"
-        });
-
-        // Medium trust users (50-89 score)
-        sponsorshipRules[keccak256("MEDIUM_TRUST")] = SponsorshipRule({
-            minTrustScore: 50,
-            maxGasPerOp: 500000, // 500k gas per op
-            maxGasPerDay: 5000000, // 5M gas per day
-            maxGasPerMonth: 100000000, // 100M gas per month
-            isActive: true,
-            description: "MEDIUM_TRUST"
-        });
-
-        // Low trust users (25-49 score)
-        sponsorshipRules[keccak256("LOW_TRUST")] = SponsorshipRule({
-            minTrustScore: 25,
-            maxGasPerOp: 250000, // 250k gas per op
-            maxGasPerDay: 1000000, // 1M gas per day
-            maxGasPerMonth: 20000000, // 20M gas per month
-            isActive: true,
-            description: "LOW_TRUST"
-        });
-
-        // Basic users (10-24 score)
-        sponsorshipRules[keccak256("BASIC_USER")] = SponsorshipRule({
-            minTrustScore: 10,
-            maxGasPerOp: 100000, // 100k gas per op
-            maxGasPerDay: 500000, // 500k gas per day
-            maxGasPerMonth: 10000000, // 10M gas per month
-            isActive: true,
-            description: "BASIC_USER"
-        });
-    }
-
-    // Admin functions
-    function updateSponsorshipRule(
-        string memory ruleId,
-        uint256 minTrustScore,
-        uint256 maxGasPerOp,
-        uint256 maxGasPerDay,
-        uint256 maxGasPerMonth,
-        bool isActive,
-        string memory description
-    ) external onlyRole(ADMIN_ROLE) {
-        bytes32 id = keccak256(abi.encodePacked(ruleId));
-        sponsorshipRules[id] = SponsorshipRule({
-            minTrustScore: minTrustScore,
-            maxGasPerOp: maxGasPerOp,
-            maxGasPerDay: maxGasPerDay,
-            maxGasPerMonth: maxGasPerMonth,
-            isActive: isActive,
-            description: description
-        });
-
-        emit SponsorshipRuleUpdated(id, minTrustScore, maxGasPerOp, isActive);
+        _installDefaultRules();
     }
 
     function updateAlchemyConfig(
+        string calldata policyId,
+        string calldata appId,
+        address paymaster,
+        uint256 maxGasPerTx,
+        bool backendManaged
+    ) external onlyRole(ADMIN_ROLE) {
+        _updateConfig(policyId, appId, paymaster, maxGasPerTx, backendManaged);
+    }
+
+    function setOnboardingSettings(uint256 allowance, uint256 period) external onlyRole(ADMIN_ROLE) {
+        onboardingAllowance = allowance;
+        onboardingPeriod = period;
+        emit OnboardingSettingsUpdated(allowance, period);
+    }
+
+    function setWhitelist(bytes32 dappId, bool allowed, bool enforce) external onlyRole(ADMIN_ROLE) {
+        if (dappId != bytes32(0)) {
+            dappWhitelist[dappId] = allowed;
+        }
+        enforceDappWhitelist = enforce;
+        emit DappWhitelistUpdated(dappId, allowed, enforce);
+    }
+
+    function updateSponsorshipRule(bytes32 ruleId, SponsorshipRule calldata rule) external onlyRole(ADMIN_ROLE) {
+        _setRule(ruleId, rule);
+    }
+
+    function _setRule(bytes32 ruleId, SponsorshipRule memory rule) private {
+        if (ruleId == bytes32(0)) revert InvalidRuleId();
+        rules[ruleId] = rule;
+        if (!knownRule[ruleId]) {
+            knownRule[ruleId] = true;
+            ruleOrder.push(ruleId);
+        }
+        emit SponsorshipRuleUpdated(
+            ruleId, rule.active, rule.minTrustScore, rule.maxDailyGas, rule.maxMonthlyGas, rule.maxPerTxGas
+        );
+    }
+
+    function getRuleIds() external view returns (bytes32[] memory) {
+        return ruleOrder;
+    }
+
+    function shouldSponsorGas(bytes32 identityId, address user, uint256 gasEstimate)
+        public
+        view
+        returns (Decision memory decision)
+    {
+        if (gasEstimate == 0 || config.paymaster == address(0)) {
+            return Decision(false, bytes32(0), 0, false);
+        }
+
+        if (config.maxGasPerTx != 0 && gasEstimate > config.maxGasPerTx) {
+            return Decision(false, bytes32(0), 0, false);
+        }
+
+        (bool onboardingEligible, uint256 onboardingAllowanceLeft) = _checkOnboarding(identityId, user, gasEstimate);
+        if (onboardingEligible) {
+            return Decision(true, RULE_ONBOARDING, onboardingAllowanceLeft, true);
+        }
+
+        uint256 trustScore = identityId == bytes32(0) ? 0 : TRUST_SCORE.getScore(identityId);
+        uint256 day = _currentDay();
+        uint256 month = _currentMonth();
+        uint256 usedToday = dailyGasUsed[user][day];
+        uint256 usedThisMonth = monthlyGasUsed[user][month];
+
+        uint256 length = ruleOrder.length;
+        for (uint256 i = 0; i < length; i++) {
+            bytes32 ruleId = ruleOrder[i];
+            SponsorshipRule storage rule = rules[ruleId];
+            if (!rule.active) continue;
+            if (trustScore < rule.minTrustScore) continue;
+            if (rule.maxPerTxGas != 0 && gasEstimate > rule.maxPerTxGas) {
+                continue;
+            }
+            if (rule.maxDailyGas != 0 && usedToday + gasEstimate > rule.maxDailyGas) continue;
+            if (rule.maxMonthlyGas != 0 && usedThisMonth + gasEstimate > rule.maxMonthlyGas) continue;
+
+            uint256 allowedGas = gasEstimate;
+            if (rule.maxPerTxGas != 0 && rule.maxPerTxGas < allowedGas) {
+                allowedGas = rule.maxPerTxGas;
+            }
+            if (config.maxGasPerTx != 0 && config.maxGasPerTx < allowedGas) {
+                allowedGas = config.maxGasPerTx;
+            }
+
+            return Decision(true, ruleId, allowedGas, false);
+        }
+
+        return Decision(false, bytes32(0), 0, false);
+    }
+
+    function getPaymasterData(bytes32 identityId, address user, uint256 gasEstimate, bytes32 dappId)
+        external
+        view
+        returns (bool eligible, bytes memory paymasterAndData, bytes32 ruleId, bool onboarding, uint256 allowedGas)
+    {
+        if (enforceDappWhitelist && !dappWhitelist[dappId]) {
+            return (false, "", bytes32(0), false, 0);
+        }
+
+        Decision memory decision = shouldSponsorGas(identityId, user, gasEstimate);
+        if (!decision.eligible) {
+            return (false, "", bytes32(0), false, 0);
+        }
+
+        bytes memory encoded = abi.encode(
+            config.paymaster,
+            config.policyId,
+            config.appId,
+            decision.ruleId,
+            decision.allowedGas,
+            decision.onboarding,
+            dappId
+        );
+
+        return (true, encoded, decision.ruleId, decision.onboarding, decision.allowedGas);
+    }
+
+    function recordGasSponsorship(
+        bytes32 identityId,
+        address user,
+        uint256 gasUsed,
+        bytes32 ruleId,
+        bool onboarding,
+        string calldata trustReason
+    ) external onlyRole(OPERATOR_ROLE) nonReentrant {
+        if (gasUsed == 0) revert InvalidAmount();
+
+        uint256 day = _currentDay();
+        uint256 month = _currentMonth();
+        dailyGasUsed[user][day] += gasUsed;
+        monthlyGasUsed[user][month] += gasUsed;
+        totalGasSponsored[user] += gasUsed;
+
+        if (onboarding) {
+            if (onboardingStart[user] == 0) {
+                onboardingStart[user] = block.timestamp;
+                emit OnboardingStarted(user, block.timestamp);
+            }
+            onboardingGasUsed[user] += gasUsed;
+            VERIFICATION_LOGGER.logEvent("AGMO", user, keccak256(abi.encode(user, gasUsed)));
+        } else {
+            SponsorshipRule storage rule = rules[ruleId];
+            if (!rule.active) revert InvalidRuleId();
+            if (identityId != bytes32(0) && bytes(trustReason).length != 0) {
+                TRUST_SCORE.increaseScore(identityId, 1, trustReason);
+            }
+            VERIFICATION_LOGGER.logEvent("AGMS", user, keccak256(abi.encode(user, ruleId, gasUsed)));
+        }
+
+        emit GasSponsored(identityId, user, ruleId, gasUsed, onboarding);
+    }
+
+    function _updateConfig(
         string memory policyId,
         string memory appId,
-        address alchemyPaymaster,
-        uint256 maxSponsoredGas
-    ) external onlyRole(ADMIN_ROLE) {
-        alchemyConfig.policyId = policyId;
-        alchemyConfig.appId = appId;
-        alchemyConfig.alchemyPaymaster = alchemyPaymaster;
-        alchemyConfig.maxSponsoredGas = maxSponsoredGas;
+        address paymaster,
+        uint256 maxGasPerTx,
+        bool backendManaged
+    ) internal {
+        if (paymaster == address(0)) revert InvalidAddress();
+        config = AlchemyConfig({
+            policyId: policyId,
+            appId: appId,
+            paymaster: paymaster,
+            maxGasPerTx: maxGasPerTx,
+            backendManaged: backendManaged
+        });
 
-        emit AlchemyConfigUpdated(policyId, appId, alchemyPaymaster);
+        emit AlchemyConfigUpdated(paymaster, policyId, appId, maxGasPerTx, backendManaged);
     }
 
-    function setOnboardingSettings(
-        uint256 gasAllowance,
-        uint256 period
-    ) external onlyRole(ADMIN_ROLE) {
-        onboardingGasAllowance = gasAllowance;
-        onboardingPeriod = period;
+    function _installDefaultRules() private {
+        bytes32 high = keccak256("ALCHEMY_RULE_HIGH");
+        bytes32 medium = keccak256("ALCHEMY_RULE_MEDIUM");
+        bytes32 low = keccak256("ALCHEMY_RULE_LOW");
+        bytes32 basic = keccak256("ALCHEMY_RULE_BASIC");
+
+        _setRule(
+            high,
+            SponsorshipRule({
+                active: true,
+                minTrustScore: 800,
+                maxDailyGas: 5_000_000,
+                maxMonthlyGas: 100_000_000,
+                maxPerTxGas: 1_500_000
+            })
+        );
+
+        _setRule(
+            medium,
+            SponsorshipRule({
+                active: true,
+                minTrustScore: 500,
+                maxDailyGas: 3_000_000,
+                maxMonthlyGas: 60_000_000,
+                maxPerTxGas: 1_000_000
+            })
+        );
+
+        _setRule(
+            low,
+            SponsorshipRule({
+                active: true,
+                minTrustScore: 250,
+                maxDailyGas: 1_500_000,
+                maxMonthlyGas: 30_000_000,
+                maxPerTxGas: 750_000
+            })
+        );
+
+        _setRule(
+            basic,
+            SponsorshipRule({
+                active: true,
+                minTrustScore: 100,
+                maxDailyGas: 1_000_000,
+                maxMonthlyGas: 20_000_000,
+                maxPerTxGas: 500_000
+            })
+        );
     }
 
-    function whitelistDApp(
-        address dapp,
-        bool whitelisted
-    ) external onlyRole(ADMIN_ROLE) {
-        whitelistedDApps[dapp] = whitelisted;
+    function _checkOnboarding(bytes32 identityId, address user, uint256 gasEstimate)
+        private
+        view
+        returns (bool, uint256)
+    {
+        if (identityId != bytes32(0)) {
+            return (false, 0);
+        }
+
+        if (onboardingAllowance == 0 || onboardingPeriod == 0) {
+            return (false, 0);
+        }
+
+        uint256 start = onboardingStart[user];
+        if (start != 0 && block.timestamp > start + onboardingPeriod) {
+            return (false, 0);
+        }
+
+        uint256 used = onboardingGasUsed[user];
+        if (used + gasEstimate > onboardingAllowance) {
+            return (false, 0);
+        }
+
+        uint256 remaining = onboardingAllowance - used;
+        return (true, remaining);
     }
 
-    // Emergency withdrawal
-    function emergencyWithdraw() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        payable(msg.sender).transfer(address(this).balance);
+    function _currentDay() private view returns (uint256) {
+        return block.timestamp / 1 days;
     }
 
-    // Receive ETH for gas sponsorship
-    receive() external payable {}
+    function _currentMonth() private view returns (uint256) {
+        return block.timestamp / 30 days;
+    }
 }

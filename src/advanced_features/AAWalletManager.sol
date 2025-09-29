@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Create2.sol";
 import "../interfaces/IVerificationLogger.sol";
 import "../interfaces/IGuardianManager.sol";
 import "../interfaces/ITrustScore.sol";
+import "../interfaces/IIdentityRegistry.sol";
 import {IRecoveryManager} from "../interfaces/IRecoveryManager.sol";
 import {RecoveryManager} from "./RecoveryManager.sol";
 import {ISessionKeyManager} from "../interfaces/ISessionKeyManager.sol";
@@ -52,8 +53,9 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
     error InvalidRecipient();
     error NoFees();
     error WithdrawalFailed();
+
     bytes32 public constant WALLET_ADMIN_ROLE = keccak256("WALLET_ADMIN_ROLE");
-    
+
     bytes32 public constant PAYMASTER_ROLE = keccak256("PAYMASTER_ROLE");
 
     enum WalletType {
@@ -61,6 +63,7 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         Guardian, // With guardian recovery
         MultiSig, // Multi-signature wallet
         TrustBased // Trust score based permissions
+
     }
 
     enum WalletStatus {
@@ -107,9 +110,10 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
     uint256 public recoveryCounter;
     address[] public allWallets;
 
-    IVerificationLogger public immutable verificationLogger;
+    IVerificationLogger public immutable VERIFICATION_LOGGER;
     IGuardianManager public guardianManager;
     ITrustScore public trustScore;
+    IIdentityRegistry public identityRegistry;
 
     // Wallet factory settings
     address public walletImplementation;
@@ -117,51 +121,29 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
     uint256 public creationFee;
     uint256 public recoveryDelay; // Default recovery delay
 
-    event WalletCreated(
-        address indexed wallet,
-        address indexed owner,
-        WalletType walletType,
-        bytes32 salt
-    );
+    event WalletCreated(address indexed wallet, address indexed owner, WalletType walletType, bytes32 salt);
     event WalletDeployed(address indexed wallet, address indexed owner);
-    event RecoveryRequested(
-        uint256 indexed recoveryId,
-        address indexed wallet,
-        address indexed newOwner
-    );
+    event RecoveryRequested(uint256 indexed recoveryId, address indexed wallet, address indexed newOwner);
     event RecoveryExecuted(uint256 indexed recoveryId, address indexed wallet);
-    event RecoveryConfirmed(
-        uint256 indexed recoveryId,
-        address indexed guardian
-    );
+    event RecoveryConfirmed(uint256 indexed recoveryId, address indexed guardian);
     // Session key events moved to SessionKeyManager
-    event UserOpExecuted(
-        address indexed wallet,
-        bytes32 indexed userOpHash,
-        bool success
-    );
-    event WalletStatusChanged(
-        address indexed wallet,
-        WalletStatus oldStatus,
-        WalletStatus newStatus
-    );
+    event UserOpExecuted(address indexed wallet, bytes32 indexed userOpHash, bool success);
+    event WalletStatusChanged(address indexed wallet, WalletStatus oldStatus, WalletStatus newStatus);
     event DailyLimitUpdated(address indexed wallet, uint256 newLimit);
-    event SignersUpdated(
-        address indexed wallet,
-        address[] newSigners,
-        uint256 newThreshold
-    );
+    event SignersUpdated(address indexed wallet, address[] newSigners, uint256 newThreshold);
 
     constructor(
         address _verificationLogger,
         address _guardianManager,
         address _trustScore,
+        address _identityRegistry,
         address _walletImplementation,
         address _entryPoint
     ) {
         if (_verificationLogger == address(0)) revert InvalidAddress();
         if (_guardianManager == address(0)) revert InvalidAddress();
         if (_trustScore == address(0)) revert InvalidAddress();
+        if (_identityRegistry == address(0)) revert InvalidAddress();
         if (_walletImplementation == address(0)) revert InvalidAddress();
         if (_entryPoint == address(0)) revert InvalidAddress();
 
@@ -169,9 +151,10 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         _grantRole(WALLET_ADMIN_ROLE, msg.sender);
         _grantRole(PAYMASTER_ROLE, msg.sender);
 
-        verificationLogger = IVerificationLogger(_verificationLogger);
+        VERIFICATION_LOGGER = IVerificationLogger(_verificationLogger);
         guardianManager = IGuardianManager(_guardianManager);
         trustScore = ITrustScore(_trustScore);
+        identityRegistry = IIdentityRegistry(_identityRegistry);
         walletImplementation = _walletImplementation;
         entryPoint = _entryPoint;
 
@@ -179,15 +162,11 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         recoveryDelay = 2 days;
 
         // deploy a dedicated session key manager to shrink bytecode size
-        sessionKeyManager = ISessionKeyManager(
-            address(new SessionKeyManager(_verificationLogger, address(this)))
-        );
+        sessionKeyManager = ISessionKeyManager(address(new SessionKeyManager(_verificationLogger, address(this))));
         // deploy a lightweight stats manager
         statsManager = IWalletStatsManager(address(new WalletStatsManager()));
         // deploy recovery manager
-        recoveryManager = IRecoveryManager(
-            address(new RecoveryManager(_verificationLogger, _guardianManager))
-        );
+        recoveryManager = IRecoveryManager(address(new RecoveryManager(_verificationLogger, _guardianManager)));
     }
 
     function createWallet(
@@ -205,10 +184,7 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
 
         if (walletType == WalletType.MultiSig) {
             if (initialSigners.length < 2) revert InvalidParam();
-            if (
-                signatureThreshold == 0 ||
-                signatureThreshold > initialSigners.length
-            ) revert InvalidParam();
+            if (signatureThreshold == 0 || signatureThreshold > initialSigners.length) revert InvalidParam();
         }
 
         address walletAddress = _computeWalletAddress(salt, msg.sender);
@@ -237,12 +213,10 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
 
         // Stats managed externally by WalletStatsManager
 
-        verificationLogger.logEvent(
-            "AAWC",
-            msg.sender,
-            keccak256(
-                abi.encodePacked(walletAddress, uint256(walletType), salt)
-            )
+        _ensureIdentityRegistration(msg.sender);
+
+        VERIFICATION_LOGGER.logEvent(
+            "AAWC", msg.sender, keccak256(abi.encodePacked(walletAddress, uint256(walletType), salt))
         );
 
         emit WalletCreated(walletAddress, msg.sender, walletType, salt);
@@ -251,35 +225,28 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
 
     function deployWallet(address walletAddress) external nonReentrant {
         WalletConfig storage wallet = wallets[walletAddress];
-        if (
-            !(wallet.owner == msg.sender ||
-                hasRole(WALLET_ADMIN_ROLE, msg.sender))
-        ) revert NotOwnerOrAdmin();
+        if (!(wallet.owner == msg.sender || hasRole(WALLET_ADMIN_ROLE, msg.sender))) revert NotOwnerOrAdmin();
         if (wallet.isDeployed) revert AlreadyDeployed();
 
-        bytes memory bytecode = abi.encodePacked(
-            walletImplementation,
-            abi.encode(wallet.owner, wallet.signers, wallet.signatureThreshold)
-        );
+        bytes memory bytecode =
+            abi.encodePacked(walletImplementation, abi.encode(wallet.owner, wallet.signers, wallet.signatureThreshold));
 
         address deployed = Create2.deploy(0, wallet.salt, bytecode);
         if (deployed != walletAddress) revert Mismatch();
 
         wallet.isDeployed = true;
 
-        verificationLogger.logEvent(
-            "AAWD",
-            wallet.owner,
-            keccak256(abi.encodePacked(walletAddress))
-        );
+        VERIFICATION_LOGGER.logEvent("AAWD", wallet.owner, keccak256(abi.encodePacked(walletAddress)));
 
         emit WalletDeployed(walletAddress, wallet.owner);
     }
 
-    function executeUserOp(
-        UserOperation memory userOp,
-        bytes32 userOpHash
-    ) external onlyRole(PAYMASTER_ROLE) nonReentrant returns (bool) {
+    function executeUserOp(UserOperation memory userOp, bytes32 userOpHash)
+        external
+        onlyRole(PAYMASTER_ROLE)
+        nonReentrant
+        returns (bool)
+    {
         WalletConfig storage wallet = wallets[userOp.sender];
         if (wallet.walletAddress != userOp.sender) revert InvalidParam();
         if (wallet.status != WalletStatus.Active) revert InactiveWallet();
@@ -290,9 +257,11 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
 
         // Check trust score if required
         if (wallet.trustScoreThreshold > 0) {
-            uint256 currentTrustScore = trustScore.getTrustScore(wallet.owner);
-            if (currentTrustScore < wallet.trustScoreThreshold)
+            bytes32 identityId = identityRegistry.resolveIdentity(wallet.owner);
+            uint256 currentTrustScore = trustScore.getScore(identityId);
+            if (currentTrustScore < wallet.trustScoreThreshold) {
                 revert LowTrust();
+            }
         }
 
         // Check daily spending limit
@@ -303,80 +272,51 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
 
         // Update statistics via external manager
         statsManager.recordUserOp(
-            userOp.sender,
-            success,
-            userOp.callGasLimit +
-                userOp.verificationGasLimit +
-                userOp.preVerificationGas,
-            0
+            userOp.sender, success, userOp.callGasLimit + userOp.verificationGasLimit + userOp.preVerificationGas, 0
         );
 
         wallet.lastUsed = block.timestamp;
 
-        verificationLogger.logEvent(
-            "UOE",
-            wallet.owner,
-            keccak256(abi.encodePacked(userOpHash, success))
-        );
+        VERIFICATION_LOGGER.logEvent("UOE", wallet.owner, keccak256(abi.encodePacked(userOpHash, success)));
 
         emit UserOpExecuted(userOp.sender, userOpHash, success);
         return success;
     }
 
-    function requestRecovery(
-        address wallet,
-        address newOwner,
-        string memory reason
-    ) external nonReentrant returns (uint256) {
+    function requestRecovery(address wallet, address newOwner, string memory reason)
+        external
+        nonReentrant
+        returns (uint256)
+    {
         WalletConfig storage walletConfig = wallets[wallet];
         if (walletConfig.walletAddress != wallet) revert InvalidParam();
-        if (walletConfig.walletType != WalletType.Guardian)
+        if (walletConfig.walletType != WalletType.Guardian) {
             revert InvalidParam();
+        }
 
         // Check if sender is a guardian
-        if (!guardianManager.isGuardian(walletConfig.owner, msg.sender))
+        if (!guardianManager.isGuardian(walletConfig.owner, msg.sender)) {
             revert NotGuardian();
+        }
 
-        uint256 id = recoveryManager.requestRecovery(
-            wallet,
-            newOwner,
-            reason,
-            recoveryDelay,
-            walletConfig.owner,
-            msg.sender
-        );
+        uint256 id =
+            recoveryManager.requestRecovery(wallet, newOwner, reason, recoveryDelay, walletConfig.owner, msg.sender);
         walletConfig.status = WalletStatus.Recovering;
         emit RecoveryRequested(id, wallet, newOwner);
-        emit WalletStatusChanged(
-            wallet,
-            WalletStatus.Active,
-            WalletStatus.Recovering
-        );
+        emit WalletStatusChanged(wallet, WalletStatus.Active, WalletStatus.Recovering);
         return id;
     }
 
     function confirmRecovery(uint256 recoveryId, address wallet) external {
         WalletConfig storage walletConfig = wallets[wallet];
-        recoveryManager.confirmRecovery(
-            recoveryId,
-            wallet,
-            walletConfig.owner,
-            msg.sender
-        );
+        recoveryManager.confirmRecovery(recoveryId, wallet, walletConfig.owner, msg.sender);
         emit RecoveryConfirmed(recoveryId, msg.sender);
     }
 
-    function executeRecovery(
-        uint256 recoveryId,
-        address wallet
-    ) external nonReentrant {
+    function executeRecovery(uint256 recoveryId, address wallet) external nonReentrant {
         WalletConfig storage walletConfig = wallets[wallet];
         address oldOwner = walletConfig.owner;
-        address newOwner = recoveryManager.executeRecovery(
-            recoveryId,
-            wallet,
-            walletConfig.owner
-        );
+        address newOwner = recoveryManager.executeRecovery(recoveryId, wallet, walletConfig.owner);
         walletConfig.owner = newOwner;
         walletConfig.status = WalletStatus.Active;
 
@@ -385,11 +325,7 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         ownerToWallet[newOwner] = wallet;
 
         emit RecoveryExecuted(recoveryId, wallet);
-        emit WalletStatusChanged(
-            wallet,
-            WalletStatus.Recovering,
-            WalletStatus.Active
-        );
+        emit WalletStatusChanged(wallet, WalletStatus.Recovering, WalletStatus.Active);
     }
 
     function addSessionKey(
@@ -403,12 +339,7 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         WalletConfig storage walletConfig = wallets[wallet];
         if (walletConfig.owner != msg.sender) revert NotOwnerOrAdmin();
         sessionKeyManager.addSessionKey(
-            wallet,
-            sessionKey,
-            validUntil,
-            spendingLimit,
-            allowedFunctions,
-            allowedContracts
+            wallet, sessionKey, validUntil, spendingLimit, allowedFunctions, allowedContracts
         );
     }
 
@@ -418,56 +349,42 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         sessionKeyManager.revokeSessionKey(wallet, sessionKey);
     }
 
-    function updateWalletSettings(
-        address wallet,
-        uint256 newDailyLimit,
-        uint256 newTrustThreshold
-    ) external {
+    function updateWalletSettings(address wallet, uint256 newDailyLimit, uint256 newTrustThreshold) external {
         WalletConfig storage walletConfig = wallets[wallet];
         if (walletConfig.owner != msg.sender) revert NotOwnerOrAdmin();
 
         walletConfig.dailySpendingLimit = newDailyLimit;
         walletConfig.trustScoreThreshold = newTrustThreshold;
 
-        verificationLogger.logEvent(
-            "WSU",
-            msg.sender,
-            keccak256(
-                abi.encodePacked(wallet, newDailyLimit, newTrustThreshold)
-            )
+        VERIFICATION_LOGGER.logEvent(
+            "WSU", msg.sender, keccak256(abi.encodePacked(wallet, newDailyLimit, newTrustThreshold))
         );
 
         emit DailyLimitUpdated(wallet, newDailyLimit);
     }
 
-    function updateSigners(
-        address wallet,
-        address[] memory newSigners,
-        uint256 newThreshold
-    ) external {
+    function updateSigners(address wallet, address[] memory newSigners, uint256 newThreshold) external {
         WalletConfig storage walletConfig = wallets[wallet];
         if (walletConfig.owner != msg.sender) revert NotOwnerOrAdmin();
-        if (walletConfig.walletType != WalletType.MultiSig)
+        if (walletConfig.walletType != WalletType.MultiSig) {
             revert InvalidParam();
+        }
         if (newSigners.length < 2) revert InvalidParam();
-        if (newThreshold == 0 || newThreshold > newSigners.length)
+        if (newThreshold == 0 || newThreshold > newSigners.length) {
             revert InvalidParam();
+        }
 
         walletConfig.signers = newSigners;
         walletConfig.signatureThreshold = newThreshold;
 
-        verificationLogger.logEvent(
-            "SUN",
-            msg.sender,
-            keccak256(abi.encodePacked(wallet, newSigners.length, newThreshold))
+        VERIFICATION_LOGGER.logEvent(
+            "SUN", msg.sender, keccak256(abi.encodePacked(wallet, newSigners.length, newThreshold))
         );
 
         emit SignersUpdated(wallet, newSigners, newThreshold);
     }
 
-    function getWallet(
-        address walletAddress
-    )
+    function getWallet(address walletAddress)
         external
         view
         returns (
@@ -496,22 +413,15 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         return ownerToWallet[user];
     }
 
-    function getWalletStats(
-        address wallet
-    ) external view returns (IWalletStatsManager.UserOpStats memory) {
+    function getWalletStats(address wallet) external view returns (IWalletStatsManager.UserOpStats memory) {
         return statsManager.getStats(wallet);
     }
 
-    function getSessionKeys(
-        address wallet
-    ) external view returns (address[] memory) {
+    function getSessionKeys(address wallet) external view returns (address[] memory) {
         return sessionKeyManager.getSessionKeys(wallet);
     }
 
-    function isSessionKeyValid(
-        address wallet,
-        address sessionKey
-    ) external view returns (bool) {
+    function isSessionKeyValid(address wallet, address sessionKey) external view returns (bool) {
         return sessionKeyManager.isSessionKeyValid(wallet, sessionKey);
     }
 
@@ -523,21 +433,13 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         return allWallets;
     }
 
-    function _computeWalletAddress(
-        bytes32 salt,
-        address owner
-    ) private view returns (address) {
-        bytes memory bytecode = abi.encodePacked(
-            walletImplementation,
-            abi.encode(owner)
-        );
+    function _computeWalletAddress(bytes32 salt, address owner) private view returns (address) {
+        bytes memory bytecode = abi.encodePacked(walletImplementation, abi.encode(owner));
 
         return Create2.computeAddress(salt, keccak256(bytecode));
     }
 
-    function _executeOperation(
-        UserOperation memory userOp
-    ) private pure returns (bool) {
+    function _executeOperation(UserOperation memory userOp) private pure returns (bool) {
         // Enhanced execution with proper validation
         if (userOp.callData.length == 0) return false;
 
@@ -547,15 +449,14 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
         if (userOp.preVerificationGas < 21000) revert LowGas();
 
         // Validate gas prices are within reasonable bounds
-        if (userOp.maxFeePerGas < userOp.maxPriorityFeePerGas)
+        if (userOp.maxFeePerGas < userOp.maxPriorityFeePerGas) {
             revert GasPricing();
+        }
         if (userOp.maxFeePerGas > 1000 gwei) revert GasPriceTooHigh();
 
         // Simulate execution success based on gas limits and validation
         // In production, this would execute the actual transaction
-        return
-            userOp.callGasLimit >= 21000 &&
-            userOp.verificationGasLimit >= 100000;
+        return userOp.callGasLimit >= 21000 && userOp.verificationGasLimit >= 100000;
     }
 
     function _checkDailyLimit(address wallet, uint256 value) private {
@@ -571,39 +472,45 @@ contract AAWalletManager is AccessControl, ReentrancyGuard, IUserOp {
             walletConfig.lastResetDay = currentDay;
         }
 
-        if (walletConfig.spentToday + value > walletConfig.dailySpendingLimit)
+        if (walletConfig.spentToday + value > walletConfig.dailySpendingLimit) {
             revert InvalidParam();
+        }
 
         walletConfig.spentToday += value;
     }
 
-    function _estimateValue(
-        UserOperation memory userOp
-    ) private pure returns (uint256) {
+    function _estimateValue(UserOperation memory userOp) private pure returns (uint256) {
         // Simplified value estimation - in production would decode calldata
         return userOp.callGasLimit * userOp.maxFeePerGas;
     }
 
-    function setCreationFee(
-        uint256 newFee
-    ) external onlyRole(WALLET_ADMIN_ROLE) {
+    function _ensureIdentityRegistration(address owner) private {
+        if (address(identityRegistry) == address(0)) {
+            return;
+        }
+
+        try identityRegistry.resolveIdentity(owner) returns (bytes32 existingId) {
+            VERIFICATION_LOGGER.logEvent("IDEX", owner, existingId);
+        } catch {
+            bytes32 identityId = identityRegistry.registerIdentity(owner, "");
+            VERIFICATION_LOGGER.logEvent("IDRG", owner, identityId);
+        }
+    }
+
+    function setCreationFee(uint256 newFee) external onlyRole(WALLET_ADMIN_ROLE) {
         creationFee = newFee;
     }
 
-    function setRecoveryDelay(
-        uint256 newDelay
-    ) external onlyRole(WALLET_ADMIN_ROLE) {
+    function setRecoveryDelay(uint256 newDelay) external onlyRole(WALLET_ADMIN_ROLE) {
         recoveryDelay = newDelay;
     }
 
-    function withdrawFees(
-        address payable recipient
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdrawFees(address payable recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (recipient == address(0)) revert InvalidRecipient();
         uint256 balance = address(this).balance;
         if (balance == 0) revert NoFees();
 
-        (bool success, ) = recipient.call{value: balance}("");
+        (bool success,) = recipient.call{value: balance}("");
         if (!success) revert WithdrawalFailed();
     }
 

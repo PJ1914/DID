@@ -7,8 +7,6 @@ import {VerificationLogger} from "../../src/core/VerificationLogger.sol";
 import {TrustScore} from "../../src/advanced_features/TrustScore.sol";
 import {CertificateManager} from "../../src/organizations/CertificateManager.sol";
 import {GuardianManager} from "../../src/advanced_features/GuardianManager.sol";
-import {GlobalCredentialAnchor} from "../../src/privacy_cross-chain/GlobalCredentialAnchor.sol";
-import {ZkKeyRegistry} from "../../src/privacy_cross-chain/ZkKeyRegistry.sol";
 import {OfflineVerificationManager} from "../../src/verification/OfflineVerificationManager.sol";
 import {MobileVerificationInterface} from "../../src/verification/MobileVerificationInterface.sol";
 import {AadhaarVerificationManager} from "../../src/verification/AadhaarVerificationManager.sol";
@@ -94,15 +92,11 @@ contract DeployFullStackWithConfig is Script {
             address(core.registry),
             address(core.trust)
         );
-        (
-            GuardianManager guardian,
-            GlobalCredentialAnchor anchor,
-            ZkKeyRegistry zkRegistry
-        ) = DeployLib.deployGuardianAnchor(
-                address(core.logger),
-                address(core.registry),
-                address(core.trust)
-            );
+        GuardianManager guardian = DeployLib.deployGuardian(
+            address(core.logger),
+            address(core.registry),
+            address(core.trust)
+        );
         DisputeResolution dispute = DeployLib.deployGovernance(
             address(core.logger),
             address(core.trust)
@@ -151,7 +145,7 @@ contract DeployFullStackWithConfig is Script {
         // Deploy or resolve ZK stack and wire
         ZkArtifacts memory zk = _deployZkStack(
             admin,
-            address(anchor),
+            address(0),
             address(verifiers.aadhaar),
             address(verifiers.income),
             address(offline)
@@ -199,16 +193,7 @@ contract DeployFullStackWithConfig is Script {
             "identity.guardianManager",
             address(guardian)
         );
-        vm.serializeAddress(
-            root,
-            "identity.globalCredentialAnchor",
-            address(anchor)
-        );
-        vm.serializeAddress(
-            root,
-            "identity.zkKeyRegistry",
-            address(zkRegistry)
-        );
+        // Removed cross-chain: globalCredentialAnchor, zkKeyRegistry
         vm.serializeAddress(
             root,
             "governance.disputeResolution",
@@ -337,11 +322,11 @@ contract DeployFullStackWithConfig is Script {
 
     function _wireZkManager(
         ZKProofManager manager,
-        address anchor,
+        address /*anchor*/,
         address aadhaar,
         address income,
         address offline,
-        address admin
+        address /*admin*/
     ) internal {
         if (aadhaar != address(0)) {
             try
@@ -376,28 +361,7 @@ contract DeployFullStackWithConfig is Script {
                 console.log("Failed to wire Offline (missing admin role?)");
             }
         }
-        if (anchor != address(0)) {
-            try manager.grantRole(manager.ROOT_MANAGER_ROLE(), anchor) {
-                console.log(
-                    "Granted ROOT_MANAGER_ROLE to GlobalCredentialAnchor"
-                );
-            } catch {
-                console.log(
-                    "Failed to grant ROOT_MANAGER_ROLE to anchor (need admin role)"
-                );
-            }
-            try
-                GlobalCredentialAnchor(anchor).setZkProofManager(
-                    address(manager)
-                )
-            {
-                console.log("Wired GlobalCredentialAnchor -> ZKPM");
-            } catch {
-                console.log(
-                    "Failed to wire anchor (missing anchor admin role?)"
-                );
-            }
-        }
+        // Anchor integration removed.
     }
 
     function _ensureProofType(

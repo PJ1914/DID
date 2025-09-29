@@ -2,22 +2,18 @@
 pragma solidity ^0.8.19;
 
 interface ISessionKeyManager {
-    struct SessionKey {
-        address keyAddress;
-        uint256 validUntil;
+    struct SessionKeyConfig {
+        bool active;
+        uint64 validUntil;
         uint256 spendingLimit;
-        uint256 spentAmount;
-        bool isActive;
+        uint256 spent;
         string[] allowedFunctions;
         address[] allowedContracts;
     }
 
-    event SKA(
-        address indexed wallet,
-        address indexed sessionKey,
-        uint256 validUntil
-    );
-    event SKR(address indexed wallet, address indexed sessionKey);
+    event SessionKeyAdded(address indexed wallet, address indexed sessionKey, uint64 validUntil, uint256 spendingLimit);
+
+    event SessionKeyRevoked(address indexed wallet, address indexed sessionKey);
 
     function addSessionKey(
         address wallet,
@@ -30,17 +26,9 @@ interface ISessionKeyManager {
 
     function revokeSessionKey(address wallet, address sessionKey) external;
 
-    function isSessionKeyValid(
-        address wallet,
-        address sessionKey
-    ) external view returns (bool);
+    function getSessionKeys(address wallet) external view returns (address[] memory);
 
-    function getSessionKeys(
-        address wallet
-    ) external view returns (address[] memory);
+    function isSessionKeyValid(address wallet, address sessionKey) external view returns (bool);
 
-    function getSessionKey(
-        address wallet,
-        address sessionKey
-    ) external view returns (SessionKey memory);
+    function getSessionKeyConfig(address wallet, address sessionKey) external view returns (SessionKeyConfig memory);
 }

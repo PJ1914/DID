@@ -24,13 +24,11 @@ import {Groth16Verifier as IncomeVerifierContract} from "../../tools/zk-circuits
 ///  - ZKPM_ADDRESS = existing ZKProofManager (if DEPLOY_ZKPM=false)
 ///  - AGE_VERIFIER_ADDR, ATTR_VERIFIER_ADDR, INCOME_VERIFIER_ADDR, AGE_MAX_VERIFIER_ADDR
 ///  - ZK_ROOT (optional) hex bytes32 to anchor
-///  - ANCHOR_ADDRESS (optional) if you want to grant ROOT_MANAGER_ROLE to GlobalCredentialAnchor
 ///  - AADHAAR_ADDRESS, INCOME_ADDRESS, OFFLINE_ADDRESS (optional) to auto-wire their setZkProofManager
 ///
 /// This script will also attempt to auto-wire the ZKProofManager into the deployed
-/// Aadhaar/Income/Offline managers and GlobalCredentialAnchor using DevOpsTools to
-/// locate the most recent deployments. Calls are wrapped in try/catch so missing
-/// roles or absent deployments won't break the run.
+/// Aadhaar/Income/Offline managers using DevOpsTools to locate the most recent deployments.
+/// Calls are wrapped in try/catch so missing roles or absent deployments won't break the run.
 contract DeployAndWireZK is Script {
     function run() external {
         bool deploy = vm.envOr("DEPLOY_ZKPM", true);
@@ -43,7 +41,6 @@ contract DeployAndWireZK is Script {
         address ageMaxVerifier = vm.envOr("AGE_MAX_VERIFIER_ADDR", address(0));
 
         bytes32 rootToAnchor = vm.envOr("ZK_ROOT", bytes32(0));
-        address anchorAddrEnv = vm.envOr("ANCHOR_ADDRESS", address(0));
 
         uint256 pk = vm.envOr("PRIVATE_KEY", uint256(0));
         if (pk != 0) {
@@ -127,13 +124,6 @@ contract DeployAndWireZK is Script {
                 block.chainid
             );
         }
-        address anchor = anchorAddrEnv;
-        if (anchor == address(0) && !skipLookup) {
-            anchor = DevOpsTools.get_most_recent_deployment(
-                "GlobalCredentialAnchor",
-                block.chainid
-            );
-        }
 
         if (aadhaar != address(0)) {
             try ISetZkProofManager(aadhaar).setZkProofManager(address(zkpm)) {
@@ -154,28 +144,6 @@ contract DeployAndWireZK is Script {
                 console.log("Wired OfflineVerificationManager -> ZKPM");
             } catch {
                 console.log("Failed to wire Offline (missing admin role?)");
-            }
-        }
-
-        // Grant ROOT_MANAGER_ROLE to GlobalCredentialAnchor so it can sync roots
-        if (anchor != address(0)) {
-            try zkpm.grantRole(zkpm.ROOT_MANAGER_ROLE(), anchor) {
-                console.log(
-                    "Granted ROOT_MANAGER_ROLE to GlobalCredentialAnchor:",
-                    anchor
-                );
-            } catch {
-                console.log(
-                    "Failed to grant ROOT_MANAGER_ROLE to Anchor (need admin role)"
-                );
-            }
-            // Also attempt to set ZKPM on the anchor
-            try ISetZkProofManager(anchor).setZkProofManager(address(zkpm)) {
-                console.log("Wired GlobalCredentialAnchor -> ZKPM");
-            } catch {
-                console.log(
-                    "Failed to wire Anchor (missing ANCHOR_ADMIN_ROLE?)"
-                );
             }
         }
 
