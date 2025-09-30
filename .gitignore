@@ -1,6 +1,10 @@
 # Compiler files
 cache/
 out/
+node_modules/
+dist/
+*.tsbuildinfo
+.ts-out/
 
 # Ignores development broadcast logs
 !/broadcast

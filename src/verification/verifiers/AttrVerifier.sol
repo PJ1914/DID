@@ -1,12 +1,9 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
-contract Groth16Verifier {
-    function verifyProof(uint256[2] calldata, uint256[2][2] calldata, uint256[2] calldata, uint256[1] calldata)
-        external
-        pure
-        returns (bool)
-    {
-        return true;
-    }
+import {Groth16Verifier as AttrVerifierBase} from "../../../tools/zk-circuits/build/AttrVerifier.sol";
+
+/// @notice Thin wrapper that re-exports the snarkjs-generated attribute equality verifier.
+contract Groth16Verifier is AttrVerifierBase {
+
 }

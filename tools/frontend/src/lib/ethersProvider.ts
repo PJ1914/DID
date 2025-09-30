@@ -1,8 +1,8 @@
-import { BrowserProvider, JsonRpcProvider } from "ethers";
+import { BrowserProvider, JsonRpcProvider, type Eip1193Provider } from "ethers";
 
 declare global {
     interface Window {
-        ethereum?: unknown;
+        ethereum?: Eip1193Provider;
     }
 }
 
@@ -23,7 +23,7 @@ export async function connectBrowserWallet(): Promise<{
         throw new Error("No injected wallet found. Install MetaMask or another provider.");
     }
 
-    const provider = new BrowserProvider(window.ethereum as object, "any");
+    const provider = new BrowserProvider(window.ethereum, "any");
     const accounts = await provider.send("eth_requestAccounts", []);
     if (!accounts || accounts.length === 0) {
         throw new Error("Wallet connection rejected or no accounts returned");
