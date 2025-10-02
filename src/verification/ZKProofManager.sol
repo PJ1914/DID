@@ -52,27 +52,24 @@ contract ZKProofManager is AccessControl, ReentrancyGuard, IZKProofManager {
 
         uint256 length = initialTypes.length;
         for (uint256 i = 0; i < length; i++) {
-            _addProofType(
-                initialTypes[i].name,
-                initialTypes[i].verifier,
-                initialTypes[i].active
-            );
+            _addProofType(initialTypes[i].name, initialTypes[i].verifier, initialTypes[i].active);
         }
     }
 
-    function addProofType(
-        string calldata name,
-        address verifier,
-        bool active
-    ) external override onlyRole(PROOF_ADMIN_ROLE) returns (uint256) {
+    function addProofType(string calldata name, address verifier, bool active)
+        external
+        override
+        onlyRole(PROOF_ADMIN_ROLE)
+        returns (uint256)
+    {
         return _addProofType(name, verifier, active);
     }
 
-    function updateProofType(
-        uint256 typeId,
-        address verifier,
-        bool active
-    ) external override onlyRole(PROOF_ADMIN_ROLE) {
+    function updateProofType(uint256 typeId, address verifier, bool active)
+        external
+        override
+        onlyRole(PROOF_ADMIN_ROLE)
+    {
         if (!_proofTypeExists(typeId)) revert ProofTypeNotFound();
         if (verifier == address(0)) revert InvalidAddress();
 
@@ -83,56 +80,34 @@ contract ZKProofManager is AccessControl, ReentrancyGuard, IZKProofManager {
         emit ProofTypeUpdated(typeId, verifier, active);
     }
 
-    function getProofType(
-        uint256 typeId
-    ) public view override returns (ProofTypeInfo memory) {
+    function getProofType(uint256 typeId) public view override returns (ProofTypeInfo memory) {
         if (!_proofTypeExists(typeId)) revert ProofTypeNotFound();
         ProofType storage info = proofTypes[typeId];
-        return
-            ProofTypeInfo({
-                name: info.name,
-                verifier: info.verifier,
-                active: info.active
-            });
+        return ProofTypeInfo({name: info.name, verifier: info.verifier, active: info.active});
     }
 
-    function getAllProofTypes()
-        external
-        view
-        override
-        returns (ProofTypeInfo[] memory list)
-    {
+    function getAllProofTypes() external view override returns (ProofTypeInfo[] memory list) {
         list = new ProofTypeInfo[](proofTypeCount);
         for (uint256 i = 0; i < proofTypeCount; i++) {
             ProofType storage info = proofTypes[i];
-            list[i] = ProofTypeInfo({
-                name: info.name,
-                verifier: info.verifier,
-                active: info.active
-            });
+            list[i] = ProofTypeInfo({name: info.name, verifier: info.verifier, active: info.active});
         }
     }
 
-    function resolveTypeId(
-        string calldata name
-    ) external view override returns (uint256) {
+    function resolveTypeId(string calldata name) external view override returns (uint256) {
         bytes32 key = keccak256(bytes(name));
         if (!proofTypeNameRegistered[key]) revert ProofTypeNotFound();
         return proofTypeIds[key];
     }
 
-    function anchorRoot(
-        bytes32 root
-    ) external override onlyRole(ROOT_MANAGER_ROLE) {
+    function anchorRoot(bytes32 root) external override onlyRole(ROOT_MANAGER_ROLE) {
         if (root == bytes32(0)) revert InvalidSignals();
         validRoots[root] = true;
         rootTimestamps[root] = block.timestamp;
         emit RootAnchored(root, block.timestamp);
     }
 
-    function revokeRoot(
-        bytes32 root
-    ) external override onlyRole(ROOT_MANAGER_ROLE) {
+    function revokeRoot(bytes32 root) external override onlyRole(ROOT_MANAGER_ROLE) {
         if (!validRoots[root]) revert RootNotAnchored();
         validRoots[root] = false;
         emit RootRevoked(root);
@@ -142,9 +117,7 @@ contract ZKProofManager is AccessControl, ReentrancyGuard, IZKProofManager {
         return validRoots[root];
     }
 
-    function usedNullifier(
-        bytes32 nullifier
-    ) external view override returns (bool) {
+    function usedNullifier(bytes32 nullifier) external view override returns (bool) {
         return nullifiers[nullifier];
     }
 
@@ -164,12 +137,7 @@ contract ZKProofManager is AccessControl, ReentrancyGuard, IZKProofManager {
         ProofType storage info = proofTypes[typeId];
         if (!info.active) revert ProofTypeInactive();
 
-        bool ok = IGroth16Verifier(info.verifier).verifyProof(
-            proof.a,
-            proof.b,
-            proof.c,
-            publicSignals
-        );
+        bool ok = IGroth16Verifier(info.verifier).verifyProof(proof.a, proof.b, proof.c, publicSignals);
         if (!ok) revert ProofVerificationFailed();
 
         nullifiers[nullifier] = true;
@@ -177,75 +145,39 @@ contract ZKProofManager is AccessControl, ReentrancyGuard, IZKProofManager {
         return true;
     }
 
-    function verifyAgeProof(
-        bytes32 root,
-        bytes32 nullifier,
-        Proof calldata proof,
-        uint256[] calldata publicSignals
-    ) external override returns (bool) {
-        return
-            verifyProof(
-                ZkTypes.ageGte(),
-                root,
-                nullifier,
-                proof,
-                publicSignals
-            );
+    function verifyAgeProof(bytes32 root, bytes32 nullifier, Proof calldata proof, uint256[] calldata publicSignals)
+        external
+        override
+        returns (bool)
+    {
+        return verifyProof(ZkTypes.ageGte(), root, nullifier, proof, publicSignals);
     }
 
-    function verifyAgeMaxProof(
-        bytes32 root,
-        bytes32 nullifier,
-        Proof calldata proof,
-        uint256[] calldata publicSignals
-    ) external override returns (bool) {
-        return
-            verifyProof(
-                ZkTypes.ageLte(),
-                root,
-                nullifier,
-                proof,
-                publicSignals
-            );
+    function verifyAgeMaxProof(bytes32 root, bytes32 nullifier, Proof calldata proof, uint256[] calldata publicSignals)
+        external
+        override
+        returns (bool)
+    {
+        return verifyProof(ZkTypes.ageLte(), root, nullifier, proof, publicSignals);
     }
 
-    function verifyAttrProof(
-        bytes32 root,
-        bytes32 nullifier,
-        Proof calldata proof,
-        uint256[] calldata publicSignals
-    ) external override returns (bool) {
-        return
-            verifyProof(
-                ZkTypes.attrEquals(),
-                root,
-                nullifier,
-                proof,
-                publicSignals
-            );
+    function verifyAttrProof(bytes32 root, bytes32 nullifier, Proof calldata proof, uint256[] calldata publicSignals)
+        external
+        override
+        returns (bool)
+    {
+        return verifyProof(ZkTypes.attrEquals(), root, nullifier, proof, publicSignals);
     }
 
-    function verifyIncomeProof(
-        bytes32 root,
-        bytes32 nullifier,
-        Proof calldata proof,
-        uint256[] calldata publicSignals
-    ) external override returns (bool) {
-        return
-            verifyProof(
-                ZkTypes.incomeGte(),
-                root,
-                nullifier,
-                proof,
-                publicSignals
-            );
+    function verifyIncomeProof(bytes32 root, bytes32 nullifier, Proof calldata proof, uint256[] calldata publicSignals)
+        external
+        override
+        returns (bool)
+    {
+        return verifyProof(ZkTypes.incomeGte(), root, nullifier, proof, publicSignals);
     }
 
-    function _addProofType(
-        string memory name,
-        address verifier,
-        bool active
-    ) private returns (uint256) {
+    function _addProofType(string memory name, address verifier, bool active) private returns (uint256) {
         if (bytes(name).length == 0) revert InvalidName();
         if (verifier == address(0)) revert InvalidAddress();
 
@@ -253,11 +185,7 @@ contract ZKProofManager is AccessControl, ReentrancyGuard, IZKProofManager {
         if (proofTypeNameRegistered[key]) revert ProofTypeNameTaken();
 
         uint256 typeId = proofTypeCount++;
-        proofTypes[typeId] = ProofType({
-            name: name,
-            verifier: verifier,
-            active: active
-        });
+        proofTypes[typeId] = ProofType({name: name, verifier: verifier, active: active});
         proofTypeIds[key] = typeId;
         proofTypeNameRegistered[key] = true;
 

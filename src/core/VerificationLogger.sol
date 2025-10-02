@@ -33,40 +33,29 @@ contract VerificationLogger is AccessControl, IVerificationLogger {
     }
 
     /// @inheritdoc IVerificationLogger
-    function logEvent(
-        string calldata tag,
-        address actor,
-        bytes32 contentHash
-    ) external override onlyRole(LOGGER_ROLE) {
+    function logEvent(string calldata tag, address actor, bytes32 contentHash)
+        external
+        override
+        onlyRole(LOGGER_ROLE)
+    {
         if (bytes(tag).length == 0) revert InvalidTag();
         if (actor == address(0)) revert InvalidActor();
 
         uint256 logId = ++logCount;
-        emit LogRecorded(
-            logId,
-            tag,
-            actor,
-            msg.sender,
-            contentHash,
-            block.timestamp
-        );
+        emit LogRecorded(logId, tag, actor, msg.sender, contentHash, block.timestamp);
     }
 
     /**
      * @notice Convenience helper for admins to grant logging rights.
      */
-    function grantLoggerRole(
-        address account
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function grantLoggerRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _grantRole(LOGGER_ROLE, account);
     }
 
     /**
      * @notice Convenience helper for admins to revoke logging rights.
      */
-    function revokeLoggerRole(
-        address account
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function revokeLoggerRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revokeRole(LOGGER_ROLE, account);
     }
 }

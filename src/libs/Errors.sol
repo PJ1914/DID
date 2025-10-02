@@ -12,7 +12,5 @@ library Errors {
     error VerificationProviderNotFound();
     error VerificationRecordNotFound();
     error DuplicateVerification();
-    error DisputeNotFound();
-    error InvalidStateTransition();
     error InsufficientTrustScore();
 }

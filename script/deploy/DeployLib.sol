@@ -11,7 +11,6 @@ import {OfflineVerificationManager} from "../../src/verification/OfflineVerifica
 import {MobileVerificationInterface} from "../../src/verification/MobileVerificationInterface.sol";
 import {CertificateManager} from "../../src/organizations/CertificateManager.sol";
 import {GuardianManager} from "../../src/advanced_features/GuardianManager.sol";
-import {DisputeResolution} from "../../src/governance/DisputeResolution.sol";
 
 library DeployLib {
     struct Core {
@@ -82,12 +81,5 @@ library DeployLib {
         address trust
     ) internal returns (GuardianManager guardian) {
         guardian = new GuardianManager(logger, registry, trust);
-    }
-
-    function deployGovernance(
-        address logger,
-        address trust
-    ) internal returns (DisputeResolution dispute) {
-        dispute = new DisputeResolution(logger, trust);
     }
 }

@@ -102,7 +102,12 @@ contract OrganizationManager is AccessControl, IOrganizationManager {
         return org;
     }
 
-    function hasOrganizationRole(bytes32 organizationId, address account, bytes32 role) external view returns (bool) {
+    function hasOrganizationRole(bytes32 organizationId, address account, bytes32 role)
+        external
+        view
+        override
+        returns (bool)
+    {
         return organizationRoles[organizationId][account][role];
     }
 

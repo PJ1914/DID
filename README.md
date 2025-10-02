@@ -1,6 +1,6 @@
 # DID Smart Contracts (Foundry)
 
-A modular, production-grade suite of Solidity contracts for decentralized identity (DID) and verifiable credentials on Ethereum-compatible chains. The system focuses on privacy-preserving verification, organization-managed credentials, and robust governance via dispute resolution.
+A modular, production-grade suite of Solidity contracts for decentralized identity (DID) and verifiable credentials on Ethereum-compatible chains. The system focuses on privacy-preserving verification and organization-managed credentials, with extensible hooks for future governance layers.
 
 This repo uses Foundry for builds/tests and OpenZeppelin libraries for security and standards.
 
@@ -10,7 +10,7 @@ This repo uses Foundry for builds/tests and OpenZeppelin libraries for security 
 - (Cross-chain components removed for simplification in current version)
 - Account abstraction (ERC-4337) modular smart account with pluggable modules (session keys, subscriptions)
 - Transparent audit trail via `VerificationLogger` + standardized events & custom errors
-- Dispute Resolution module retained (tokenless) — GovernanceManager & SystemToken removed
+- Governance surfaces removed from the active stack to streamline the MVP footprint
 
 ## Architecture Overview
 
@@ -31,8 +31,7 @@ Core building blocks:
   - `MigrationManager`, `TrustScore`, `PaymasterManager` (updated to not require SystemToken)
   - Modular Account Modules (new): `SessionKeyModule`, `SubscriptionModule` (see "Modular Account Architecture" below)
 - Governance
-  - `DisputeResolution` — dispute lifecycle, arbitration, and execution
-  - Removed: `GovernanceManager` and `SystemToken` (and `ISystemToken` interface)
+  - Legacy governance contracts (e.g., dispute resolution) have been retired; only audit artifacts remain for posterity
 
 Interfaces live under `src/interfaces/` and are imported per-contract (we replaced the monolithic `SharedInterfaces.sol`). Key interfaces: `IVerificationLogger`, `ITrustScore`, `IUserIdentityRegistry`, `IGuardianManager`, `IEntryPoint`, etc.
 
@@ -49,7 +48,7 @@ Refactor wave (September 2025):
 Earlier structural changes:
 - Fully decoupled interfaces (removed `SharedInterfaces.sol`).
 - Removed economic tokenization (deleted `SystemToken.sol`, `ISystemToken.sol`).
-- Removed `GovernanceManager`; dispute resolution retained and tokenless.
+- Removed on-chain governance modules (GovernanceManager and DisputeResolution).
 - Updated `PaymasterManager.sol` to remove token dependency.
 
 ## Getting Started
@@ -149,7 +148,7 @@ Usage examples (env: RPC_URL, PRIVATE_KEY):
   - `AlchemyGasManager`, `PaymasterManager`
   - Modules: `SessionKeyModule` (external signer, selector allowlist, daily value limits), `SubscriptionModule` (recurring payments w/ grace + auto-cancel) — extensible registry
 - Governance
-  - `DisputeResolution` (tokenless bond post-change)
+  - No dispute module ships in this snapshot; integrate your own governance layer if required.
 
 ## Testing
 ```bash
@@ -191,10 +190,8 @@ For deep design notes see `docs/modular_account_architecture.md`.
 ## FAQs
 - Q: Why remove SystemToken?
   - A: Simplifies the protocol by dropping the native token dependency; reduces coupling and economic complexity.
-- Q: Is governance gone?
-  - A: The GovernanceManager was removed. DisputeResolution remains for adjudication and execution paths.
-- Q: Can I plug in another token later?
-  - A: Yes. You can reintroduce a bond mechanism by adding a generic ERC20 interface and checks in DisputeResolution if needed.
+\- Q: Can I plug in another token or governance layer later?
+  - A: Yes. The contracts are modular—feel free to add custom governance modules or token hooks on top of the current foundation.
 
 ## Repository Guide
 - [`docs/system_overview.md`](docs/system_overview.md) — high-level architecture, tooling, and automation map

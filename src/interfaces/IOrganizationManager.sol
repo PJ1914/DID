@@ -21,4 +21,6 @@ interface IOrganizationManager {
     function revokeRole(bytes32 organizationId, address account, bytes32 role) external;
 
     function getOrganization(bytes32 organizationId) external view returns (OrganizationTypes.Organization memory);
+
+    function hasOrganizationRole(bytes32 organizationId, address account, bytes32 role) external view returns (bool);
 }

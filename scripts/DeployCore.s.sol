@@ -7,7 +7,6 @@ import {TrustScore} from "../src/core/TrustScore.sol";
 import {IdentityRegistry} from "../src/core/IdentityRegistry.sol";
 import {VerificationManager} from "../src/verification/VerificationManager.sol";
 import {OrganizationManager} from "../src/organizations/OrganizationManager.sol";
-import {DisputeResolution} from "../src/governance/DisputeResolution.sol";
 import {VerificationLogger} from "../src/core/VerificationLogger.sol";
 import {Roles} from "../src/libs/Roles.sol";
 
@@ -43,8 +42,6 @@ contract DeployCore is Script {
         OrganizationManager organizationManager = new OrganizationManager(
             admin
         );
-        DisputeResolution disputeResolution = new DisputeResolution(admin);
-
         trustScore.grantRole(
             Roles.TRUST_SCORE_UPDATER,
             address(verificationManager)
@@ -55,7 +52,6 @@ contract DeployCore is Script {
         console2.log("IdentityRegistry", address(identityRegistry));
         console2.log("VerificationManager", address(verificationManager));
         console2.log("OrganizationManager", address(organizationManager));
-        console2.log("DisputeResolution", address(disputeResolution));
 
         vm.stopBroadcast();
     }

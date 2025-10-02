@@ -44,7 +44,6 @@ exclude = [
     "script/**",
     "tools/zk-circuits/build/**",
     "src/**/dependencies/**",
-    "src/privacy_cross-chain/dependencies/**",
     "src/verification/dependencies/**",
     "src/organizations/dependencies/**",
 ]

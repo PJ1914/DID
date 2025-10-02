@@ -1,353 +1,215 @@
-# Identity Smart Contract Analysis Guide
 
-This document provides a comprehensive roadmap for analyzing the Identity smart contract ecosystem. Follow this order to build understanding from foundational contracts to complex features.
+# DID Smart Contract & ZKP Analysis Guide (2025)
 
-## 📋 Analysis Methodology
-
-**Approach**: Bottom-up analysis starting with core dependencies and building to complex features.
-**Focus Areas**: 
-- Contract dependencies and relationships
-- Function flows and state changes
-- Security mechanisms and access controls
-- Integration patterns between contracts
+This guide provides a comprehensive, up-to-date map of the Solidity contracts and zero-knowledge proof (ZKP) flows in this repository. It details the architecture, contract responsibilities, dependencies, and runtime flows, and includes a visual flow chart for quick reference. All legacy governance/dispute modules have been removed or retired; this guide reflects the current, dispute-free system.
 
 ---
 
-## 🏗️ **TIER 1: Core Infrastructure (Start Here)**
+## How to Use This Guide
 
-These are the foundational contracts that almost everything else depends on. Analyze these first to understand the system's backbone.
-
-### 1. `src/core/VerificationLogger.sol` DONE
-**Priority: CRITICAL** ⭐⭐⭐⭐⭐
-- **Purpose**: Central logging hub for all system events
-- **Why First**: Nearly every other contract depends on this for audit trails
-- **Key Functions**: `logEvent()`, `batchLogEvents()`
-- **Dependencies**: None (pure infrastructure)
-- **Used By**: ALL other contracts
-
-### 2. `src/core/UserIdentityRegistry.sol`
-**Priority: CRITICAL** ⭐⭐⭐⭐⭐
-- **Purpose**: Single source of truth for user identity and verification status
-- **Why Second**: Core user management that other contracts query
-- **Key Functions**: `registerUser()`, `updateVerificationStatus()`, `isVerified()`
-- **Dependencies**: VerificationLogger, TrustScore
-- **Used By**: All verification contracts, certificate issuance, governance
-
-### 3. `src/advanced_features/TrustScore.sol`
-**Priority: CRITICAL** ⭐⭐⭐⭐⭐
-- **Purpose**: Dynamic reputation system for users and organizations
-- **Why Third**: Trust scores affect permissions across the entire platform
-- **Key Functions**: `updateScore()`, `getTrustScore()`, `getTrustTier()`
-- **Dependencies**: VerificationLogger
-- **Used By**: Governance, verification contracts, economic incentives
-
-### 4. System token (removed)
-Note: The native ERC20 token previously used for staking/payments has been removed per the latest requirements. All staking/economic flows depending on it are deprecated.
+1. **Follow the reading sequence** – it starts with the minimal primitives and climbs toward higher-level features.
+2. **Track dependencies** – every subsection lists the critical contracts it talks to so you can open tabs in parallel.
+3. **Keep the flow chart handy** – it captures the runtime wiring between components.
 
 ---
 
-## 🔍 **TIER 2: Verification Layer**
 
-These contracts handle real-world identity verification. Analyze after understanding core infrastructure.
+## Step 0 – Shared Building Blocks (`src/libs` & `src/interfaces`)
 
-### 5. `src/verification/FaceVerificationManager.sol`
-**Priority: HIGH** ⭐⭐⭐⭐
-- **Purpose**: Biometric face verification using oracles
-- **Analysis Focus**: Oracle interaction patterns, privacy mechanisms
-- **Key Functions**: `initiateFaceVerification()`, `submitVerificationResult()`
-- **Dependencies**: VerificationLogger, UserIdentityRegistry, TrustScore
-- **Integration**: Updates user verification status upon success
+Start with the domain types, error helpers, and interfaces so Solidity signatures are familiar before touching stateful contracts.
 
-### 6. `src/verification/AadhaarVerificationManager.sol`
-**Priority: HIGH** ⭐⭐⭐⭐
-- **Purpose**: Aadhaar (India national ID) verification with privacy
-- **Analysis Focus**: Multi-step verification flow, commitment schemes
-- **Key Functions**: `initiateAadhaarOTP()`, `submitAadhaarOTP()`, `finalizeAadhaarVerification()`
-- **Dependencies**: VerificationLogger, UserIdentityRegistry, TrustScore, FaceVerificationManager
-- **Special**: Can require face verification as prerequisite
 
-### 7. `src/verification/IncomeVerificationManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Income range verification (privacy-preserving)
-- **Analysis Focus**: Range-based disclosure, oracle dependencies
-- **Key Functions**: `initiateIncomeVerification()`, `submitIncomeVerification()`
-- **Dependencies**: VerificationLogger, UserIdentityRegistry, TrustScore, AadhaarVerificationManager
-- **Special**: Requires Aadhaar verification first
+| File | Purpose | Notable Members | Referenced By |
+| --- | --- | --- | --- |
+| `libs/Errors.sol` | Custom errors for gas savings and clarity. | `NotAuthorized`, `InvalidInput`, etc. | All managers and modules |
+| `libs/Roles.sol` | Canonical `bytes32` role constants. | `SYSTEM_ADMIN`, `VERIFICATION_PROVIDER`, etc. | All AccessControl contracts |
+| `libs/IdentityTypes.sol` | Identity storage structs/enums. | `IdentityStatus`, `IdentityProfile` | `IdentityRegistry`, `VerificationManager` |
+| `libs/VerificationTypes.sol` | Verification metadata and helpers. | `VerificationRecord`, template ID helpers | `VerificationManager` |
+| `libs/OrganizationTypes.sol` | Organization data model. | `Organization`, `OrganizationStatus` | `OrganizationManager` |
+| `libs/ZkTypes.sol` | Canonical proof type IDs for ZK circuits. | `ageGte`, `attrEquals`, etc. | `ZKProofManager`, AA wallet policies |
 
-### 8. `src/verification/OfflineVerificationManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Manages offline credential verification infrastructure
-- **Analysis Focus**: EIP-712 signatures, Merkle proofs, revocation lists
-- **Key Functions**: `updateTrustedIssuer()`, `addMerkleRoot()`, `revokeCredential()`
-- **Dependencies**: AccessControl only
-- **Special**: Supports offline/mobile verification scenarios
 
-### 9. `src/verification/MobileVerificationInterface.sol`
-**Priority: LOW** ⭐⭐
-- **Purpose**: Lightweight interface for mobile apps
-- **Analysis Focus**: Facade pattern, gas optimization
-- **Key Functions**: `verifyOfflinePackage()`, `isIssuerTrusted()`
-- **Dependencies**: OfflineVerificationManager
-- **Special**: Gateway for mobile client interactions
+**Key interfaces:**
+`IIdentityRegistry.sol`, `ITrustScore.sol`, `IVerificationLogger.sol`, `IVerificationManager.sol`, `IZKProofManager.sol`, `IGroth16Verifier.sol`, `IOrganizationManager.sol`, `IGuardianManager.sol`, `IRecoveryManager.sol`, `ISessionKeyManager.sol`, `IWalletStatsManager.sol`.
+
+> 📌 **Why first?** Having the types and interfaces in mind makes the contracts’ storage layouts and access patterns much easier to absorb.
 
 ---
 
-## 🏛️ **TIER 3: Organization & Credential Management**
 
-These contracts manage institutions and the credentials they issue.
+## Step 1 – Core Identity Backbone (`src/core`)
 
-### 10. `src/organizations/OrganizationStorage.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Data structures for organization management
-- **Analysis Focus**: State layout, data relationships
-- **Key Structs**: `Organization`, `OrganizationStatus`
-- **Dependencies**: None (pure storage)
-- **Used By**: OrganizationLogic, OrganizationView
+| Contract | Purpose | Key Functions | Depends On |
+| --- | --- | --- | --- |
+| `VerificationLogger.sol` | Central audit log; role-gated event emitter. | `logEvent`, `grantLoggerRole`, `revokeLoggerRole` | OpenZeppelin `AccessControl`; all modules write to it |
+| `TrustScore.sol` | Global reputation ledger keyed by identity ID. | `increaseScore`, `decreaseScore`, `setScore`, `getScore` | `Roles` for auth, emits events for off-chain analytics |
+| `IdentityRegistry.sol` | Canonical identity store. Maps owners ⇄ identity IDs, enforces status. | `registerIdentity`, `setIdentityStatus`, `updateMetadata`, `getIdentity`, `resolveIdentity`, `setTrustScoreContract` | `TrustScore`, `Roles` |
 
-### 11. `src/organizations/OrganizationLogic.sol`
-**Priority: HIGH** ⭐⭐⭐⭐
-- **Purpose**: Business logic for organization management
-- **Analysis Focus**: Registration flow, role management
-- **Key Functions**: `registerOrganization()`, `updateOrganizationStatus()`
-- **Dependencies**: OrganizationStorage, CertificateManager, RecognitionManager
-- **Integration**: Grants ISSUER_ROLE to approved organizations
-
-### 12. `src/organizations/OrganizationView.sol`
-**Priority: LOW** ⭐⭐
-- **Purpose**: Read-only functions for organization data
-- **Analysis Focus**: Query optimization, public interfaces
-- **Key Functions**: `getOrganization()`, `getActiveOrganizations()`
-- **Dependencies**: OrganizationStorage
-- **Special**: View-only functions for external consumption
-
-### 13. `src/organizations/OrganizationRegistryProxy.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Unified facade for organization management
-- **Analysis Focus**: Proxy pattern, delegation
-- **Key Functions**: Inherits from OrganizationLogic and OrganizationView
-- **Dependencies**: OrganizationLogic, OrganizationView
-- **Special**: Main entry point for organization operations
-
-### 14. `src/organizations/CertificateManager.sol`
-**Priority: HIGH** ⭐⭐⭐⭐
-- **Purpose**: ERC721 NFT management for educational certificates
-- **Analysis Focus**: NFT lifecycle, issuer permissions, metadata handling
-- **Key Functions**: `issueCertificate()`, `revokeCertificate()`, `getCertificateData()`
-- **Dependencies**: VerificationLogger, UserIdentityRegistry, TrustScore
-- **Special**: Each certificate is a unique NFT
-
-### 15. `src/organizations/RecognitionManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: ERC1155 SFT management for badges and recognitions
-- **Analysis Focus**: Semi-fungible tokens, batch operations
-- **Key Functions**: `issueRecognition()`, `issueBatchRecognition()`, `setRecognitionType()`
-- **Dependencies**: VerificationLogger, TrustScore, CertificateManager
-- **Special**: Uses ERC1155 for efficient badge distribution
+> ✅ **Reading target:** Understand how identities are minted, how status gates everything downstream, and how trust score adjustments propagate.
 
 ---
 
-## 🗳️ **TIER 4: Governance & Economics**
 
-These contracts handle platform governance, economic incentives, and dispute resolution.
+## Step 2 – Verification & ZKP Layer (`src/verification`)
 
-### 16. GovernanceManager (removed)
-Note: The previous DAO-style `GovernanceManager` has been removed to reduce scope. Where needed, admin functions are gated via AccessControl on individual managers.
+| Contract | Purpose | Core Functions | Dependencies |
+| --- | --- | --- | --- |
+| `VerificationManager.sol` | Records verifications from approved providers, updates trust scores, manages provider registry. | `registerProvider`, `setProviderStatus`, `recordVerification`, `setVerificationStatus`, `getVerification`, `getProvider` | `IdentityRegistry` (checks subject status), `TrustScore` (rewards/penalties), `VerificationTypes`, `Roles` |
+| `ZKProofManager.sol` | Registry & router for Groth16 ZK proof verifiers; manages root anchoring and nullifier replay protection. | `addProofType`, `updateProofType`, `anchorRoot`, `revokeRoot`, `verifyProof`, `verifyAgeProof`, `verifyIncomeProof`, etc. | `IGroth16Verifier` contracts, `ZkTypes`, internal root/nullifier tracking |
 
-### 17. `src/governance/DisputeResolution.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Handles disputes between users and organizations
-- **Analysis Focus**: Dispute lifecycle, arbitration, penalties
-- **Key Functions**: `raiseDispute()`, `submitEvidence()`, `resolveDispute()`
-- **Dependencies**: VerificationLogger, TrustScore
-- **Special**: Can affect trust scores; economics/staking references removed
-
-### 18. Economic incentives (removed)
-Note: Staking, rewards, and token economics have been removed. Any prior references to `EconomicIncentives.sol` are deprecated.
+**ZKP flow essentials:**
+1. Admins register proof verifiers via `addProofType`.
+2. Off-chain services anchor Merkle roots with `anchorRoot`.
+3. End-users submit Groth16 proofs; `verifyProof` checks root validity, ensures nullifier uniqueness, and delegates to the correct verifier contract.
+4. Consumers (AA wallet policies, dApps) call `verifyAgeProof`, `verifyIncomeProof`, etc., for ready-made templates.
 
 ---
 
-## 🔐 **TIER 5: Advanced Features & Account Abstraction**
 
-These contracts provide advanced functionality like AA wallets, gas management, and cross-chain features.
+## Step 3 – Organizations (`src/organizations`)
 
-### 19. `src/advanced_features/GuardianManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Social recovery system for user accounts
-- **Analysis Focus**: Guardian selection, recovery processes, security
-- **Key Functions**: `addGuardian()`, `initiateRecovery()`, `confirmRecovery()`
-- **Dependencies**: VerificationLogger, UserIdentityRegistry, TrustScore
-- **Security**: Critical for account recovery mechanisms
+| Contract | Purpose | Key Functions | Linked Components |
+| --- | --- | --- | --- |
+| `OrganizationManager.sol` | Registers and maintains organization metadata and per-org role assignments. | `registerOrganization`, `setOrganizationStatus`, `assignRole`, `revokeRole`, `updateOrganizationMetadata`, `getOrganization`, `hasOrganizationRole` | `OrganizationTypes`, `Roles`, `Errors` |
+| `CertificateManager.sol` | Lets active organizations mint and revoke ERC-721 certificates (NFTs) for identities they’ve verified. Enforces per-organization issuer roles and logs activity. | `issueCertificate`, `revokeCertificate`, `getCertificate` | `OrganizationManager` (role checks), `IdentityRegistry` (identity resolution), `VerificationLogger` (audit trail) |
 
-### 20. `src/advanced_features/AAWalletManager.sol`
-**Priority: HIGH** ⭐⭐⭐⭐
-- **Purpose**: Account Abstraction wallet management (ERC-4337)
-- **Analysis Focus**: Wallet creation, UserOp handling, validation
-- **Key Functions**: `createWallet()`, `executeUserOp()`, `validateUserOp()`
-- **Dependencies**: VerificationLogger, GuardianManager, TrustScore
-- **Special**: Implements ERC-4337 standard for gasless transactions
+> 🔎 While currently standalone, expect future hooks into trust scoring or verification gating. Role-setting patterns mirror identity admin design.
 
-### 21. `src/advanced_features/PaymasterManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Gas sponsorship for user operations
-- **Analysis Focus**: Gas policies, sponsorship rules
-- **Key Functions**: `sponsorUserOp()`, `setGasPolicy()`
-- **Dependencies**: VerificationLogger, TrustScore
-- **Integration**: Works with AAWalletManager for gasless UX; SystemToken dependency removed
 
-### 22. `src/advanced_features/IdentityEntryPoint.sol`
-**Priority: HIGH** ⭐⭐⭐⭐
-- **Purpose**: Custom EntryPoint for ERC-4337 with trust integration
-- **Analysis Focus**: UserOp execution, trust-based policies, gas management
-- **Key Functions**: `handleOps()`, `validateUserOp()`, `executeBatch()`
-- **Dependencies**: VerificationLogger, TrustScore
-- **Critical**: Core component for Account Abstraction infrastructure
-
-### 23. `src/advanced_features/AlchemyGasManager.sol`
-**Priority: LOW** ⭐⭐
-- **Purpose**: Integration with Alchemy's gas manager service
-- **Analysis Focus**: External service integration, gas optimization
-- **Key Functions**: `requestGasSponsorship()`, `validateAlchemySignature()`
-- **Dependencies**: TrustScore, VerificationLogger
-- **Special**: Third-party service integration
-
-### 24. `src/advanced_features/IdentityModularAccount.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Modular smart contract account implementation
-- **Analysis Focus**: Account modularity, plugin system, upgrades
-- **Key Functions**: `execute()`, `executeBatch()`, `addModule()`
-- **Dependencies**: VerificationLogger
-- **Special**: Supports modular account architecture
-
-### 25. `src/advanced_features/IdentityAccountFactory.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Factory for creating Identity smart accounts
-- **Analysis Focus**: Deterministic deployment, initialization
-- **Key Functions**: `createAccount()`, `getAddress()`, `initializeAccount()`
-- **Dependencies**: VerificationLogger, TrustScore, AlchemyGasManager
-- **Integration**: Works with AAWalletManager
-
-### 26. `src/advanced_features/MigrationManager.sol`
-**Priority: LOW** ⭐
-- **Purpose**: Data migration utilities (if needed)
-- **Analysis Focus**: Migration strategies, data integrity
-- **Key Functions**: `planMigration()`, `executeMigration()`, `rollback()`
-- **Dependencies**: VerificationLogger
-- **Note**: May not be actively used in current system
+> ℹ️ **Legacy governance components (e.g., dispute resolution) have been fully retired and are not present in this architecture.**
 
 ---
 
-## 🌐 **TIER 6: Privacy & Cross-Chain**
 
-These contracts handle privacy features and cross-chain functionality.
+## Step 4 – Advanced & Account Abstraction (`src/advanced_features`)
 
-### 27. `src/privacy_cross-chain/PrivacyManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Privacy-preserving features and data protection
-- **Analysis Focus**: Data anonymization, privacy controls, consent management
-- **Key Functions**: `setPrivacyPreferences()`, `anonymizeData()`, `revokeConsent()`
-- **Dependencies**: VerificationLogger, UserIdentityRegistry
-- **Special**: GDPR compliance and privacy controls
+These contracts extend the identity layer with ERC-4337-inspired wallet stack, gas sponsorship, guardian recovery, and observability.
 
-### 28. `src/privacy_cross-chain/GlobalCredentialAnchor.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Global registry for credential verification
-- **Analysis Focus**: Interoperability, credential anchoring, global state
-- **Key Functions**: `anchorCredential()`, `verifyAnchor()`, `getGlobalStatus()`
-- **Dependencies**: VerificationLogger
-- **Integration**: Links with cross-chain systems
+| Contract | Responsibility | Key Functions | Depends On |
+| --- | --- | --- | --- |
+| `GuardianManager.sol` | Maintains guardian sets per owner for social recovery. | `setGuardians`, `addGuardian`, `removeGuardian`, `isGuardian`, `getGuardians` | `VerificationLogger`, `AccessControl` |
+| `RecoveryManager.sol` | Orchestrates guardian-driven recovery requests with thresholds and delays. | `requestRecovery`, `confirmRecovery`, `executeRecovery`, `cancelRecovery` | `GuardianManager`, `VerificationLogger` |
+| `SessionKeyManager.sol` | Issues scoped session keys for delegated actions. | `addSessionKey`, `revokeSessionKey`, `isSessionKeyValid`, `getSessionKeys`, `getSessionKeyConfig` | Only callable by owning AA wallet manager; logs via `VerificationLogger` |
+| `WalletStatsManager.sol` | Tracks UserOperation statistics for wallets. | `recordUserOp`, `getStats` | No external dependencies; owned by AA wallet manager |
+| `AlchemyGasManager.sol` | Gas sponsorship policy engine with trust-score thresholds and onboarding allowances. | `shouldSponsorGas`, `getPaymasterData`, `recordGasSponsorship`, `updateSponsorshipRule`, `setOnboardingSettings`, `setWhitelist` | Reads `TrustScore`, emits to `VerificationLogger` |
+| `AAWalletManager.sol` | High-level orchestrator: CREATE2 wallet deployment, ERC-4337 UserOp validation, guardian recovery, session keys, stats, trust limits. | `createWallet`, `deployWallet`, `executeUserOp`, `requestRecovery`, `updateWalletSettings`, `addSessionKey` | Integrates with all above advanced modules, `IdentityRegistry`, `TrustScore`, `VerificationLogger` |
 
-### 29. `src/privacy_cross-chain/CrossChainManager.sol`
-**Priority: MEDIUM** ⭐⭐⭐
-- **Purpose**: Cross-chain credential verification and messaging
-- **Analysis Focus**: LayerZero integration, cross-chain communication
-- **Key Functions**: `sendCrossChainMessage()`, `receiveCrossChainMessage()`, `verifyRemoteCredential()`
-- **Dependencies**: VerificationLogger, CertificateManager
-- **Special**: Integrates with LayerZero protocol
+> ⚙️ **Reading tip:** Work through `AAWalletManager` last in this tier; it references every other advanced feature.
 
 ---
 
-## 🔧 **TIER 7: Supporting Infrastructure**
+## Step 5 – Pulling It Together
 
-### 30. `src/core/ContractRegistry.sol`
-**Priority: LOW** ⭐
-- **Purpose**: Contract address registry and versioning
-- **Analysis Focus**: Registry patterns, contract discovery
-- **Key Functions**: `registerContract()`, `getContractAddress()`, `updateContract()`
-- **Dependencies**: VerificationLogger
-- **Note**: Administrative utility, not core functionality
 
-### 31. `src/interfaces/IEntryPoint.sol`
-**Priority: LOW** ⭐
-- **Purpose**: Interface definitions for ERC-4337 EntryPoint
-- **Analysis Focus**: Interface compliance, standard adherence
-- **Dependencies**: None
-- **Note**: Standard interface definition
+### Recommended Reading Order Recap
 
-### 32. `src/interfaces/SharedInterfaces.sol`
-**Priority: LOW** ⭐
-- **Purpose**: Common interface definitions used across contracts
-- **Analysis Focus**: Interface design, contract interoperability
-- **Dependencies**: None
-- **Note**: Supporting interface definitions
+1. Libraries & Interfaces (all files in `src/libs` and `src/interfaces`)
+2. `VerificationLogger.sol` → `TrustScore.sol` → `IdentityRegistry.sol`
+3. `VerificationManager.sol` → `ZKProofManager.sol` (provider vs. ZKP flows)
+4. `OrganizationManager.sol` → `CertificateManager.sol`
+5. Advanced features: `GuardianManager.sol`, `RecoveryManager.sol`, `SessionKeyManager.sol`, `WalletStatsManager.sol`, `AlchemyGasManager.sol`, finishing with `AAWalletManager.sol`
+
+
+### Key Runtime Flows to Trace
+
+- **Identity lifecycle:** Admin registers identity → verification providers attach verifications → trust score adjusts → downstream modules check status/score before allowing operations
+- **ZKP verification:** Roots anchored in `ZKProofManager` → Groth16 proof checked → nullifier marked → consumer contract acts on boolean result
+- **AA wallet recovery:** Guardians configured → recovery request opened in `RecoveryManager` → confirmations collected → `AAWalletManager` swaps ownership after delay
+- **Gas sponsorship:** DApp or bundler queries `AlchemyGasManager.shouldSponsorGas` → rule evaluated using trust score and usage data → paymaster decision returned, optionally adjusting trust on fulfillment
+- **Off-chain coordination:** Bundlers compose `UserOperation`s, obtain paymaster data from the sponsorship backend (which in turn queries on-chain policy), and submit the batch to the ERC-4337 EntryPoint that ultimately triggers the AA wallet; metadata and evidence URIs point to IPFS or similar decentralized storage
+- **Organization-issued credentials:** Org admin registers and is activated → assigns `ORGANIZATION_ISSUER` role to trusted staff → issuer mints via `CertificateManager`, which checks identity registration, logs to `VerificationLogger`, and stores metadata URIs (typically IPFS-backed)
 
 ---
 
-## 📝 **Analysis Recommendations**
 
-### **Phase 1: Foundation (Days 1-2)**
-Focus on Tier 1 contracts. Understand the core architecture before moving forward.
+## System Connectivity Flow Chart (2025)
 
-### **Phase 2: Identity & Verification (Days 3-5)**
-Analyze Tier 2 contracts to understand how real-world identity is verified and managed.
 
-### **Phase 3: Credentials & Organizations (Days 6-7)**
-Study Tier 3 to understand how institutions are managed and credentials are issued.
+```mermaid
+graph TD
+	subgraph Core
+		Logger[VerificationLogger]
+		Trust[TrustScore]
+		Registry[IdentityRegistry]
+	end
 
-### **Phase 4: Governance & Economics (Days 8-9)**
-Examine Tier 4 to understand platform governance and economic mechanisms.
+	subgraph Verification
+		VMgr[VerificationManager]
+		ZKMgr[ZKProofManager]
+		Groth[External Groth16 Verifiers]
+	end
 
-### **Phase 5: Advanced Features (Days 10-12)**
-Deep dive into Tier 5 for Account Abstraction and advanced functionality.
+	subgraph Organizations
+		OrgMgr[OrganizationManager]
+		CertMgr[CertificateManager]
+	end
 
-### **Phase 6: Cross-Chain & Privacy (Days 13-14)**
-Study Tier 6 for understanding interoperability and privacy features.
+	subgraph Advanced
+		Guardian[GuardianManager]
+		Recovery[RecoveryManager]
+		SessionKeys[SessionKeyManager]
+		Stats[WalletStatsManager]
+		Gas[AlchemyGasManager]
+		AAWallet[AAWalletManager]
+	end
 
-### **Phase 7: Integration Analysis (Day 15)**
-Analyze how all contracts work together as a complete system.
+	subgraph External
+		Bundler[ERC-4337 Bundler]
+		Paymaster[Alchemy Paymaster Backend]
+		IPFS[IPFS / Off-chain Storage]
+		EntryPoint[ERC-4337 EntryPoint]
+	end
+
+	Registry -->|pulls score| Trust
+	VMgr --> Registry
+	VMgr -->|adjusts| Trust
+	VMgr -->|logs| Logger
+	ZKMgr --> Groth
+	Gas --> Trust
+	Gas -->|logs| Logger
+	AAWallet --> Registry
+	AAWallet --> Trust
+	AAWallet -->|uses| Guardian
+	AAWallet --> Recovery
+	AAWallet --> SessionKeys
+	AAWallet --> Stats
+	AAWallet -->|logs| Logger
+	Guardian -->|logs| Logger
+	Recovery --> Guardian
+	Recovery -->|logs| Logger
+	SessionKeys -->|logs| Logger
+	Bundler -->|requests sponsorship| Paymaster
+	Paymaster -->|queries rules| Gas
+	Gas -->|returns policy data| Paymaster
+	Paymaster -->|paymasterAndData| Bundler
+	Bundler -->|submits batch| EntryPoint
+	EntryPoint -->|executes UserOps| AAWallet
+	Registry -->|metadata URIs| IPFS
+	VMgr -->|evidence URIs| IPFS
+	OrgMgr -->|documents| IPFS
+	OrgMgr -->|role gate| CertMgr
+	CertMgr -->|resolve identities| Registry
+	CertMgr -->|logs| Logger
+	CertMgr -->|metadata URIs| IPFS
+```
+
+> 🗺️ Use the chart to jump between files whenever you encounter an external call or interface reference.
 
 ---
 
-## 🔄 **Key Integration Patterns to Watch For**
 
-1. **Verification Flow**: How identity verification flows from managers to registry to trust scores
-2. **Role Propagation**: How roles are granted and used across contracts
-3. **Event Logging**: How all contracts consistently log to VerificationLogger
-4. **Trust Score Impact**: How trust scores affect permissions and functionality
-5. Token Economics: Removed in current version
-6. **Account Abstraction Flow**: How UserOps are processed through the AA infrastructure
+## Security & Audit Checklist (2025)
 
----
+When reviewing each contract, tick through:
 
-## 🛡️ **Security Analysis Checklist**
+- Access control surface: who can mutate state? Do role grants cascade correctly?
+- Trust score side-effects: every score change should emit context-rich reasons for off-chain analytics.
+- Reentrancy and replay: especially in `AAWalletManager`, `RecoveryManager`, and `ZKProofManager` (nullifiers!).
+- Proof anchoring hygiene: verify how roots are added, revoked, and timestamped before trusting them downstream.
+- Guardian workflows: ensure recovery thresholds (`RecoveryManager`) align with the fixed guardian count (`GuardianManager`).
+- Gas sponsorship limits: monitor daily/monthly counters in `AlchemyGasManager` for overflow or front-running vectors.
 
-For each contract, examine:
-- [ ] Access control patterns and role management
-- [ ] Reentrancy protection mechanisms
-- [ ] Integer overflow/underflow protections
-- [ ] External call handling and trust assumptions
-- [ ] State consistency across related contracts
-- [ ] Emergency pause/upgrade mechanisms
-- [ ] Input validation and sanity checks
 
 ---
 
-## 📊 **Documentation Approach**
-
-As you analyze each contract:
-1. **Document Dependencies**: What contracts does it depend on?
-2. **Track State Changes**: What state variables are modified by each function?
-3. **Map Integrations**: How does it interact with other contracts?
-4. **Identify Critical Paths**: What are the most important user journeys?
-5. **Note Security Assumptions**: What trust assumptions does the contract make?
-
-Happy analyzing! 🚀
+Happy hacking! Keep this document synced with code changes whenever contracts or roles evolve. For the most up-to-date contract/module details, always refer to this guide and the README.

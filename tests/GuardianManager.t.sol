@@ -6,11 +6,7 @@ import {GuardianManager} from "../src/advanced_features/GuardianManager.sol";
 import {IVerificationLogger} from "../src/interfaces/IVerificationLogger.sol";
 
 contract VerificationLoggerMock is IVerificationLogger {
-    function logEvent(
-        string calldata,
-        address,
-        bytes32
-    ) external pure override {}
+    function logEvent(string calldata, address, bytes32) external pure override {}
 }
 
 contract GuardianManagerTest is Test {

@@ -12,7 +12,6 @@ import {MobileVerificationInterface} from "../../src/verification/MobileVerifica
 import {AadhaarVerificationManager} from "../../src/verification/AadhaarVerificationManager.sol";
 import {IncomeVerificationManager} from "../../src/verification/IncomeVerificationManager.sol";
 import {FaceVerificationManager} from "../../src/verification/FaceVerificationManager.sol";
-import {DisputeResolution} from "../../src/governance/DisputeResolution.sol";
 import {IdentityAccountFactory} from "../../src/advanced_features/IdentityAccountFactory.sol";
 import {ZKProofManager} from "../../src/verification/ZKProofManager.sol";
 import {DevOpsTools} from "@foundry-devops/src/DevOpsTools.sol";
@@ -95,10 +94,6 @@ contract DeployFullStackWithConfig is Script {
         GuardianManager guardian = DeployLib.deployGuardian(
             address(core.logger),
             address(core.registry),
-            address(core.trust)
-        );
-        DisputeResolution dispute = DeployLib.deployGovernance(
-            address(core.logger),
             address(core.trust)
         );
 
@@ -194,11 +189,6 @@ contract DeployFullStackWithConfig is Script {
             address(guardian)
         );
         // Removed cross-chain: globalCredentialAnchor, zkKeyRegistry
-        vm.serializeAddress(
-            root,
-            "governance.disputeResolution",
-            address(dispute)
-        );
         vm.serializeAddress(root, "identity.accountFactory", address(factory));
         vm.serializeAddress(root, "identity.entryPoint", entryPoint);
         vm.serializeAddress(root, "identity.bundler", bundler);

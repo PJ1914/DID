@@ -1,53 +1,63 @@
-import type { JsonRpcProvider, Network } from "ethers";
+import { env } from './env';
+import { deploymentConfig, parseCircuitFiles } from './deployment';
 
-export interface DeploymentConfig {
-    network: {
-        chainId: number;
-        name: string;
-    };
-    core: {
-        verificationLogger: string;
-        trustScore: string;
-        userIdentityRegistry: string;
-    };
-    verification: Record<string, string>;
-    organizations: Record<string, string>;
-    identity: Record<string, string>;
-    governance: Record<string, string>;
-    zk: {
-        manager: string;
-        verifiers: Record<string, string>;
-    };
-}
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
-export const identityRegistryAbi = [
-    "function resolveIdentity(address owner) view returns (bytes32)",
-    "function getIdentity(bytes32 identityId) view returns (tuple(address owner,string metadataURI,uint8 status,uint64 createdAt,uint64 updatedAt,uint96 trustScore))"
-];
-
-export const trustScoreAbi = [
-    "function getScore(bytes32 identityId) view returns (uint256)"
-];
-
-export async function fetchDeploymentConfig(): Promise<DeploymentConfig> {
-    const response = await fetch("/config/deployment.json", { cache: "no-store" });
-    if (!response.ok) {
-        throw new Error(`Unable to load deployment config (${response.status})`);
-    }
-    return (await response.json()) as DeploymentConfig;
-}
-
-export function formatAddress(address: string): string {
-    if (!address) return "0x0";
-    return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
-export function ensureNetwork(provider: JsonRpcProvider, expectedChainId: number): Promise<void> {
-    return provider.getNetwork().then((network: Network) => {
-        if (Number(network.chainId) !== expectedChainId) {
-            throw new Error(
-                `Connected provider is on chain ${network.chainId}, expected ${expectedChainId}`
-            );
+const resolveAddress = (value?: string | null, fallback?: `0x${string}`, label?: string): `0x${string}` => {
+    const candidate = value && value.trim() ? (value.trim() as `0x${string}`) : fallback;
+    if (!candidate) {
+        if (label) {
+            console.warn(`Missing contract address for ${label}. Falling back to zero address.`);
         }
-    });
-}
+        return ZERO_ADDRESS;
+    }
+    return candidate;
+};
+
+export const contracts = {
+    identityRegistry: resolveAddress(
+        env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS,
+        deploymentConfig.core?.identityRegistry,
+        'IdentityRegistry'
+    ),
+    trustScore: resolveAddress(
+        env.NEXT_PUBLIC_TRUST_SCORE_ADDRESS,
+        deploymentConfig.core?.trustScore,
+        'TrustScore'
+    ),
+    verificationManager: resolveAddress(
+        env.NEXT_PUBLIC_VERIFICATION_MANAGER_ADDRESS,
+        deploymentConfig.verification?.manager,
+        'VerificationManager'
+    ),
+    zkProofManager: resolveAddress(
+        env.NEXT_PUBLIC_ZK_PROOF_MANAGER_ADDRESS,
+        deploymentConfig.zk?.manager,
+        'ZKProofManager'
+    ),
+    verificationLogger: resolveAddress(
+        env.NEXT_PUBLIC_VERIFICATION_LOGGER_ADDRESS,
+        deploymentConfig.core?.verificationLogger,
+        'VerificationLogger'
+    ),
+    organizationManager: resolveAddress(
+        env.NEXT_PUBLIC_ORGANIZATION_MANAGER_ADDRESS,
+        deploymentConfig.organizations?.manager,
+        'OrganizationManager'
+    )
+} as const;
+
+export const zkVerifiers = deploymentConfig.zk?.verifiers ?? {};
+export const deployedNetwork = deploymentConfig.network;
+export const circuitFiles = parseCircuitFiles(env.NEXT_PUBLIC_ZK_CIRCUIT_FILES);
+
+const verifierCircuitMap: Record<string, string> = {
+    age_gte: 'age_check',
+    age_lte: 'age_max_check',
+    attr_equals: 'attr_equals',
+    income_gte: 'income_check'
+};
+
+export const resolveCircuitKey = (verifierKey: string): string => {
+    return verifierCircuitMap[verifierKey] ?? verifierKey;
+};

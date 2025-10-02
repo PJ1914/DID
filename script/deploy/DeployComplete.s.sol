@@ -55,10 +55,7 @@ contract DeployComplete is Script {
         );
         // Cross-chain anchor & key registry removed.
 
-        // 6) Deploy Governance (DisputeResolution)
-        DeployLib.deployGovernance(address(core.logger), address(core.trust));
-
-        // 7) Wire required roles
+        // 6) Wire required roles
         bytes32 LOGGER_ROLE = keccak256("LOGGER_ROLE");
         bytes32 SCORE_MANAGER_ROLE = keccak256("SCORE_MANAGER_ROLE");
 

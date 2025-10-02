@@ -1,0 +1,40 @@
+import { z } from 'zod';
+
+const envSchema = z.object({
+    NEXT_PUBLIC_CHAIN_ID: z.string().default('11155111'),
+    NEXT_PUBLIC_RPC_URL: z.string().url().optional(),
+    NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS: z.string(),
+    NEXT_PUBLIC_TRUST_SCORE_ADDRESS: z.string(),
+    NEXT_PUBLIC_VERIFICATION_MANAGER_ADDRESS: z.string(),
+    NEXT_PUBLIC_ZK_PROOF_MANAGER_ADDRESS: z.string(),
+    NEXT_PUBLIC_VERIFICATION_LOGGER_ADDRESS: z.string().optional(),
+    NEXT_PUBLIC_ORGANIZATION_MANAGER_ADDRESS: z.string().optional(),
+    NEXT_PUBLIC_IPFS_GATEWAY: z.string().optional(),
+    NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: z.string().optional(),
+    NEXT_PUBLIC_GRAPHQL_ENDPOINT: z.string().optional(),
+    NEXT_PUBLIC_ZK_CIRCUITS_BASE_PATH: z.string().default('/circuits'),
+    NEXT_PUBLIC_ZK_CIRCUIT_FILES: z.string().optional()
+});
+
+const parsed = envSchema.safeParse({
+    NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID,
+    NEXT_PUBLIC_RPC_URL: process.env.NEXT_PUBLIC_RPC_URL,
+    NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS: process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS,
+    NEXT_PUBLIC_TRUST_SCORE_ADDRESS: process.env.NEXT_PUBLIC_TRUST_SCORE_ADDRESS,
+    NEXT_PUBLIC_VERIFICATION_MANAGER_ADDRESS: process.env.NEXT_PUBLIC_VERIFICATION_MANAGER_ADDRESS,
+    NEXT_PUBLIC_ZK_PROOF_MANAGER_ADDRESS: process.env.NEXT_PUBLIC_ZK_PROOF_MANAGER_ADDRESS,
+    NEXT_PUBLIC_VERIFICATION_LOGGER_ADDRESS: process.env.NEXT_PUBLIC_VERIFICATION_LOGGER_ADDRESS,
+    NEXT_PUBLIC_ORGANIZATION_MANAGER_ADDRESS: process.env.NEXT_PUBLIC_ORGANIZATION_MANAGER_ADDRESS,
+    NEXT_PUBLIC_IPFS_GATEWAY: process.env.NEXT_PUBLIC_IPFS_GATEWAY,
+    NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID,
+    NEXT_PUBLIC_GRAPHQL_ENDPOINT: process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT,
+    NEXT_PUBLIC_ZK_CIRCUITS_BASE_PATH: process.env.NEXT_PUBLIC_ZK_CIRCUITS_BASE_PATH,
+    NEXT_PUBLIC_ZK_CIRCUIT_FILES: process.env.NEXT_PUBLIC_ZK_CIRCUIT_FILES
+});
+
+if (!parsed.success) {
+    console.error('Invalid environment variables', parsed.error.flatten());
+    throw new Error('Invalid environment variables. Check your .env configuration.');
+}
+
+export const env = parsed.data;

@@ -48,9 +48,6 @@ contract DeployUmbrella is Script {
         );
         // Removed cross-chain anchor / key registry deployment.
 
-        // Governance
-        DeployLib.deployGovernance(address(core.logger), address(core.trust));
-
         vm.stopBroadcast();
 
         // Verify indexing using DevOpsTools
