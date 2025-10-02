@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPublicClient } from '@wagmi/core';
 import type { Hex } from 'viem';
 import { contracts } from '@/lib/contracts';
-import { organizationManagerAbi } from '@/lib/abis';
+import { OrganizationManagerABI } from '@/lib/abis';
 import { wagmiConfig } from '@/lib/wagmi';
 import { Organization, OrganizationStatus } from '@/types/organization';
 import { uploadJsonToIPFS } from '@/lib/ipfs';
@@ -30,7 +30,7 @@ export const useOrganizations = () => {
         const publicClient = getPublicClient(wagmiConfig);
         const logs = await publicClient.getContractEvents({
             address: contracts.organizationManager,
-            abi: organizationManagerAbi,
+            abi: OrganizationManagerABI,
             eventName: 'OrganizationRegistered',
             fromBlock: 0n
         });
@@ -51,7 +51,7 @@ export const useOrganizations = () => {
             organizationIds.map(async (organizationId) => {
                 const data = await publicClient.readContract({
                     address: contracts.organizationManager!,
-                    abi: organizationManagerAbi,
+                    abi: OrganizationManagerABI,
                     functionName: 'getOrganization',
                     args: [organizationId]
                 });
@@ -75,7 +75,7 @@ export const useOrganizations = () => {
             const { uri } = await uploadJsonToIPFS(metadata);
             const hash = await writeContract.writeContractAsync({
                 address: contracts.organizationManager,
-                abi: organizationManagerAbi,
+                abi: OrganizationManagerABI,
                 functionName: 'registerOrganization',
                 args: [name, uri]
             });
@@ -92,7 +92,7 @@ export const useOrganizations = () => {
             const { uri } = await uploadJsonToIPFS(metadata);
             const hash = await writeContract.writeContractAsync({
                 address: contracts.organizationManager,
-                abi: organizationManagerAbi,
+                abi: OrganizationManagerABI,
                 functionName: 'updateOrganizationMetadata',
                 args: [organizationId as Hex, uri]
             });
@@ -108,7 +108,7 @@ export const useOrganizations = () => {
             if (!contracts.organizationManager) throw new Error('Organization manager contract not configured');
             const hash = await writeContract.writeContractAsync({
                 address: contracts.organizationManager,
-                abi: organizationManagerAbi,
+                abi: OrganizationManagerABI,
                 functionName: 'setOrganizationStatus',
                 args: [organizationId as Hex, status]
             });

@@ -22,8 +22,14 @@ export default function Home() {
                     Go to dashboard
                     <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
-                <Link href="/verifications" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
-                    Manage verifications
+                <Link href="/face-verify" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+                    Face Verification
+                </Link>
+                <Link href="/admin" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+                    Admin Dashboard
+                </Link>
+                <Link href="/logs" className={buttonVariants({ variant: 'secondary', size: 'lg' })}>
+                    Verification Logs
                 </Link>
             </div>
         </div>

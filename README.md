@@ -31,7 +31,7 @@ Core building blocks:
   - `MigrationManager`, `TrustScore`, `PaymasterManager` (updated to not require SystemToken)
   - Modular Account Modules (new): `SessionKeyModule`, `SubscriptionModule` (see "Modular Account Architecture" below)
 - Governance
-  - Legacy governance contracts (e.g., dispute resolution) have been retired; only audit artifacts remain for posterity
+  - Legacy governance contracts (e.g., dispute resolution) have been fully removed; bring your own governance if needed
 
 Interfaces live under `src/interfaces/` and are imported per-contract (we replaced the monolithic `SharedInterfaces.sol`). Key interfaces: `IVerificationLogger`, `ITrustScore`, `IUserIdentityRegistry`, `IGuardianManager`, `IEntryPoint`, etc.
 
@@ -48,7 +48,7 @@ Refactor wave (September 2025):
 Earlier structural changes:
 - Fully decoupled interfaces (removed `SharedInterfaces.sol`).
 - Removed economic tokenization (deleted `SystemToken.sol`, `ISystemToken.sol`).
-- Removed on-chain governance modules (GovernanceManager and DisputeResolution).
+- Removed on-chain governance modules (GovernanceManager plus the legacy dispute module).
 - Updated `PaymasterManager.sol` to remove token dependency.
 
 ## Getting Started

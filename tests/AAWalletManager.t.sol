@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: MIT
+//
+// NOTE: Tests for AAWalletManager now live under `tests/unit/AAWalletManager.t.sol`.
+// This placeholder avoids duplicate contract compilation.
+
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
@@ -12,7 +16,11 @@ import {IVerificationLogger} from "../src/interfaces/IVerificationLogger.sol";
 contract VerificationLoggerMock is IVerificationLogger {
     event EventLogged(string tag, address actor, bytes32 contentHash);
 
-    function logEvent(string calldata tag, address actor, bytes32 contentHash) external override {
+    function logEvent(
+        string calldata tag,
+        address actor,
+        bytes32 contentHash
+    ) external override {
         emit EventLogged(tag, actor, contentHash);
     }
 }
@@ -43,10 +51,15 @@ contract AAWalletManagerTest is Test {
     function setUp() public {
         logger = new VerificationLoggerMock();
         trustScore = new TrustScore(address(this));
-        identityRegistry = new IdentityRegistry(address(this), address(trustScore));
+        identityRegistry = new IdentityRegistry(
+            address(this),
+            address(trustScore)
+        );
         guardianManager = new GuardianManager(address(this), address(logger));
 
-        implementation = address(new MockWalletAccount(address(0), new address[](0), 0));
+        implementation = address(
+            new MockWalletAccount(address(0), new address[](0), 0)
+        );
 
         walletManager = new AAWalletManager(
             address(logger),
@@ -57,7 +70,10 @@ contract AAWalletManagerTest is Test {
             ENTRY_POINT
         );
 
-        identityRegistry.grantRole(Roles.IDENTITY_ADMIN, address(walletManager));
+        identityRegistry.grantRole(
+            Roles.IDENTITY_ADMIN,
+            address(walletManager)
+        );
     }
 
     function testCreateWalletAutoRegistersIdentity() public {
@@ -67,8 +83,14 @@ contract AAWalletManagerTest is Test {
         uint256 fee = walletManager.creationFee();
 
         vm.prank(user);
-        address wallet =
-            walletManager.createWallet{value: fee}(AAWalletManager.WalletType.Basic, salt, new address[](0), 0, 0, 0);
+        address wallet = walletManager.createWallet{value: fee}(
+            AAWalletManager.WalletType.Basic,
+            salt,
+            new address[](0),
+            0,
+            0,
+            0
+        );
 
         bytes32 identityId = identityRegistry.resolveIdentity(user);
         assertTrue(identityId != bytes32(0), "identity not registered");

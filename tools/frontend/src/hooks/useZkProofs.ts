@@ -4,7 +4,7 @@ import { useAccount, useWriteContract } from 'wagmi';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPublicClient } from '@wagmi/core';
 import { contracts } from '@/lib/contracts';
-import { zkProofManagerAbi } from '@/lib/abis';
+import { ZKProofManagerABI } from '@/lib/abis';
 import { wagmiConfig } from '@/lib/wagmi';
 import { Proof, ProofRequest, ProofType } from '@/types/zk';
 import { generateProof } from '@/lib/zk';
@@ -38,7 +38,7 @@ export const useZkProofs = () => {
             const publicClient = getPublicClient(wagmiConfig);
             const list = await publicClient.readContract({
                 address: contracts.zkProofManager,
-                abi: zkProofManagerAbi,
+                abi: ZKProofManagerABI,
                 functionName: 'getAllProofTypes',
                 args: []
             });
@@ -62,7 +62,7 @@ export const useZkProofs = () => {
             if (!contracts.zkProofManager) throw new Error('ZK proof manager contract not configured');
             const hash = await writeContract.writeContractAsync({
                 address: contracts.zkProofManager,
-                abi: zkProofManagerAbi,
+                abi: ZKProofManagerABI,
                 functionName: 'anchorRoot',
                 args: [root]
             });
@@ -75,7 +75,7 @@ export const useZkProofs = () => {
             if (!contracts.zkProofManager) throw new Error('ZK proof manager contract not configured');
             const hash = await writeContract.writeContractAsync({
                 address: contracts.zkProofManager,
-                abi: zkProofManagerAbi,
+                abi: ZKProofManagerABI,
                 functionName: 'revokeRoot',
                 args: [root]
             });
@@ -100,7 +100,7 @@ export const useZkProofs = () => {
             if (!contracts.zkProofManager) throw new Error('ZK proof manager contract not configured');
             const hash = await writeContract.writeContractAsync({
                 address: contracts.zkProofManager,
-                abi: zkProofManagerAbi,
+                abi: ZKProofManagerABI,
                 functionName: 'verifyProof',
                 args: [BigInt(typeId), root, nullifier, toContractProof(proof), publicSignals]
             });

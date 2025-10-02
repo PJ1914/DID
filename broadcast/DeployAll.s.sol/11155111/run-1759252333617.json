@@ -106,7 +106,7 @@
     {
       "hash": "0x2ccac86e05e46ecef2c9182fd96821dcf11fb94ebd258d25d654ffe294de3930",
       "transactionType": "CREATE",
-      "contractName": "DisputeResolution",
+      "contractName": "LegacyGovernance",
       "contractAddress": "0x20e9257e88412941ba3c1c40ae1b8aaa6bb3feec",
       "function": null,
       "arguments": [
@@ -325,7 +325,7 @@
     {
       "hash": "0xeb4e8d732ce7b668f23b7c56db41a9fc349f59b1fdb08142991b2ce5bc801b51",
       "transactionType": "CALL",
-      "contractName": "DisputeResolution",
+      "contractName": "LegacyGovernance",
       "contractAddress": "0x20e9257e88412941ba3c1c40ae1b8aaa6bb3feec",
       "function": "grantRole(bytes32,address)",
       "arguments": [

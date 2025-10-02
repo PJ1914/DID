@@ -5,7 +5,7 @@ import { getPublicClient } from '@wagmi/core';
 import { useAccount, useWriteContract } from 'wagmi';
 import type { Hex } from 'viem';
 import { contracts } from '@/lib/contracts';
-import { identityRegistryAbi, trustScoreAbi } from '@/lib/abis';
+import { IdentityRegistryABI, TrustScoreABI } from '@/lib/abis';
 import { useIdentityStore } from '@/store/identity-store';
 import { IdentityProfile, IdentityStatus } from '@/types/identity';
 import { uploadJsonToIPFS } from '@/lib/ipfs';
@@ -56,7 +56,7 @@ export const useIdentity = () => {
 
             const identityId = (await publicClient.readContract({
                 address: contracts.identityRegistry,
-                abi: identityRegistryAbi,
+                abi: IdentityRegistryABI,
                 functionName: 'resolveIdentity',
                 args: [lookupAddress]
             })) as Hex;
@@ -68,7 +68,7 @@ export const useIdentity = () => {
 
             const profileRaw = await publicClient.readContract({
                 address: contracts.identityRegistry,
-                abi: identityRegistryAbi,
+                abi: IdentityRegistryABI,
                 functionName: 'getIdentity',
                 args: [identityId]
             });
@@ -97,7 +97,7 @@ export const useIdentity = () => {
             const publicClient = getPublicClient(wagmiConfig);
             const score = await publicClient.readContract({
                 address: contracts.trustScore,
-                abi: trustScoreAbi,
+                abi: TrustScoreABI,
                 functionName: 'getScore',
                 args: [identityQuery.data.id as Hex]
             });
@@ -121,7 +121,7 @@ export const useIdentity = () => {
             const { uri } = await uploadJsonToIPFS(metadata);
             const hash = await writeContract.writeContractAsync({
                 address: contracts.identityRegistry,
-                abi: identityRegistryAbi,
+                abi: IdentityRegistryABI,
                 functionName: 'registerIdentity',
                 args: [targetOwner, uri]
             });
@@ -138,7 +138,7 @@ export const useIdentity = () => {
             const { uri } = await uploadJsonToIPFS(metadata);
             const hash = await writeContract.writeContractAsync({
                 address: contracts.identityRegistry,
-                abi: identityRegistryAbi,
+                abi: IdentityRegistryABI,
                 functionName: 'updateMetadata',
                 args: [identityId as Hex, uri]
             });
@@ -154,7 +154,7 @@ export const useIdentity = () => {
         mutationFn: async ({ identityId, status }: { identityId: string; status: IdentityStatus }) => {
             const hash = await writeContract.writeContractAsync({
                 address: contracts.identityRegistry,
-                abi: identityRegistryAbi,
+                abi: IdentityRegistryABI,
                 functionName: 'setIdentityStatus',
                 args: [identityId as Hex, status]
             });

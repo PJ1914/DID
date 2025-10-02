@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPublicClient } from '@wagmi/core';
 import type { Hex } from 'viem';
 import { contracts } from '@/lib/contracts';
-import { verificationManagerAbi } from '@/lib/abis';
+import { VerificationManagerABI } from '@/lib/abis';
 import { wagmiConfig } from '@/lib/wagmi';
 import { VerificationRecord, VerificationStatus } from '@/types/verification';
 import { uploadJsonToIPFS } from '@/lib/ipfs';
@@ -34,7 +34,7 @@ export const useVerifications = (identityId?: string) => {
 
         const logs = await publicClient.getContractEvents({
             address: contracts.verificationManager,
-            abi: verificationManagerAbi,
+            abi: VerificationManagerABI,
             eventName: 'VerificationRecorded',
             args: {
                 identityId: identityId as Hex
@@ -56,7 +56,7 @@ export const useVerifications = (identityId?: string) => {
             uniqueVerificationIds.map(async (verificationId) => {
                 const record = await publicClient.readContract({
                     address: contracts.verificationManager!,
-                    abi: verificationManagerAbi,
+                    abi: VerificationManagerABI,
                     functionName: 'getVerification',
                     args: [verificationId]
                 });
@@ -90,7 +90,7 @@ export const useVerifications = (identityId?: string) => {
             const { uri } = await uploadJsonToIPFS(metadata);
             const hash = await writeContract.writeContractAsync({
                 address: contracts.verificationManager,
-                abi: verificationManagerAbi,
+                abi: VerificationManagerABI,
                 functionName: 'recordVerification',
                 args: [targetIdentityId as Hex, templateId as Hex, uri, BigInt(expiresAt)]
             });
@@ -106,7 +106,7 @@ export const useVerifications = (identityId?: string) => {
             if (!contracts.verificationManager) throw new Error('Verification manager contract not configured');
             const hash = await writeContract.writeContractAsync({
                 address: contracts.verificationManager,
-                abi: verificationManagerAbi,
+                abi: VerificationManagerABI,
                 functionName: 'setVerificationStatus',
                 args: [verificationId as Hex, status]
             });

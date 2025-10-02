@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getPublicClient } from '@wagmi/core';
 import type { Hex } from 'viem';
 import { contracts } from '@/lib/contracts';
-import { trustScoreAbi } from '@/lib/abis';
+import { TrustScoreABI } from '@/lib/abis';
 import { wagmiConfig } from '@/lib/wagmi';
 
 export type TrustScoreEvent = {
@@ -24,7 +24,7 @@ export const useTrustScoreHistory = (identityId?: string) => {
             const publicClient = getPublicClient(wagmiConfig);
             const logs = await publicClient.getContractEvents({
                 address: contracts.trustScore,
-                abi: trustScoreAbi,
+                abi: TrustScoreABI,
                 eventName: 'TrustScoreUpdated',
                 args: {
                     identityId: identityId as Hex
