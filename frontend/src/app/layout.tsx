@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { Web3Provider } from '@/components/web3/Web3Provider'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { Toaster } from '@/components/ui/toaster'
+import { CustomCursor } from '@/components/ui/custom-cursor'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -30,7 +31,8 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <Web3Provider>
-                        <div className="min-h-screen bg-background">
+                        <CustomCursor />
+                        <div className="min-h-screen bg-background" style={{ cursor: 'none' }}>
                             {children}
                         </div>
                         <Toaster />

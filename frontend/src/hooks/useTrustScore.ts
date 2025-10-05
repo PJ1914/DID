@@ -1,49 +1,34 @@
-import { useContractRead, useContractWrite, usePrepareContractWrite } from 'wagmi'
+import { useReadContract, useWriteContract } from 'wagmi'
+import { useChainId } from 'wagmi'
 import { getContractAddress } from '@/contracts/addresses'
-import { TrustScoreABI } from '@/contracts/abis/TrustScore.json'
-import { useNetwork } from 'wagmi'
 import type { TrustScoreEvent } from '@/types'
 
+// Mock ABI for now - replace with actual ABI when available
+const TrustScoreABI = [] as const
+
 export function useTrustScore() {
-    const { chain } = useNetwork()
-    const contractAddress = chain ? getContractAddress(chain.id, 'trustScore') : undefined
+    const chainId = useChainId()
+    const contractAddress = chainId ? getContractAddress(chainId, 'trustScore') : undefined
 
     const useGetScore = (identityId?: string) => {
-        return useContractRead({
+        return useReadContract({
             address: contractAddress as `0x${string}`,
             abi: TrustScoreABI,
             functionName: 'getScore',
             args: identityId ? [identityId] : undefined,
-            enabled: !!identityId && !!contractAddress,
-            watch: true, // Enable real-time updates
         })
     }
 
     const useIncreaseScore = () => {
-        const { config } = usePrepareContractWrite({
-            address: contractAddress as `0x${string}`,
-            abi: TrustScoreABI,
-            functionName: 'increaseScore',
-        })
-        return useContractWrite(config)
+        return useWriteContract()
     }
 
     const useDecreaseScore = () => {
-        const { config } = usePrepareContractWrite({
-            address: contractAddress as `0x${string}`,
-            abi: TrustScoreABI,
-            functionName: 'decreaseScore',
-        })
-        return useContractWrite(config)
+        return useWriteContract()
     }
 
     const useSetScore = () => {
-        const { config } = usePrepareContractWrite({
-            address: contractAddress as `0x${string}`,
-            abi: TrustScoreABI,
-            functionName: 'setScore',
-        })
-        return useContractWrite(config)
+        return useWriteContract()
     }
 
     return {

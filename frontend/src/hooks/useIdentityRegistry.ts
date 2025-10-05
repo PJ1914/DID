@@ -1,58 +1,43 @@
-import { useContractRead, useContractWrite, usePrepareContractWrite } from 'wagmi'
+import { useReadContract, useWriteContract } from 'wagmi'
+import { useChainId } from 'wagmi'
 import { CONTRACT_ADDRESSES, getContractAddress } from '@/contracts/addresses'
-import { IdentityRegistryABI } from '@/contracts/abis/IdentityRegistry.json'
-import { useNetwork } from 'wagmi'
 import type { IdentityProfile, IdentityStatus } from '@/types'
 
+// Mock ABI for now - replace with actual ABI when available
+const IdentityRegistryABI = [] as const
+
 export function useIdentityRegistry() {
-    const { chain } = useNetwork()
-    const contractAddress = chain ? getContractAddress(chain.id, 'identityRegistry') : undefined
+    const chainId = useChainId()
+    const contractAddress = chainId ? getContractAddress(chainId, 'identityRegistry') : undefined
 
     const useRegisterIdentity = () => {
-        const { config } = usePrepareContractWrite({
-            address: contractAddress as `0x${string}`,
-            abi: IdentityRegistryABI,
-            functionName: 'registerIdentity',
-        })
-        return useContractWrite(config)
+        return useWriteContract()
     }
 
     const useGetIdentity = (identityId?: string) => {
-        return useContractRead({
+        return useReadContract({
             address: contractAddress as `0x${string}`,
             abi: IdentityRegistryABI,
             functionName: 'getIdentity',
             args: identityId ? [identityId] : undefined,
-            enabled: !!identityId && !!contractAddress,
         })
     }
 
     const useResolveIdentity = (owner?: string) => {
-        return useContractRead({
+        return useReadContract({
             address: contractAddress as `0x${string}`,
             abi: IdentityRegistryABI,
             functionName: 'resolveIdentity',
             args: owner ? [owner] : undefined,
-            enabled: !!owner && !!contractAddress,
         })
     }
 
     const useUpdateMetadata = () => {
-        const { config } = usePrepareContractWrite({
-            address: contractAddress as `0x${string}`,
-            abi: IdentityRegistryABI,
-            functionName: 'updateMetadata',
-        })
-        return useContractWrite(config)
+        return useWriteContract()
     }
 
     const useSetIdentityStatus = () => {
-        const { config } = usePrepareContractWrite({
-            address: contractAddress as `0x${string}`,
-            abi: IdentityRegistryABI,
-            functionName: 'setIdentityStatus',
-        })
-        return useContractWrite(config)
+        return useWriteContract()
     }
 
     return {

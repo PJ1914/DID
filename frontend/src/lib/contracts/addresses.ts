@@ -1,5 +1,5 @@
 // Auto-generated contract addresses
-// Generated on: 2025-10-03T11:21:04.094Z
+// Generated on: 2025-10-05T10:18:34.530Z
 
 export const CONTRACT_ADDRESSES = {
   deployer: '0x7cA2331B559Ab659AC7a4A7573fADD3DFB91f19c' as const,

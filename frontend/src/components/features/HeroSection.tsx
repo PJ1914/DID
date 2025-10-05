@@ -3,113 +3,144 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Particles } from '@/components/ui/particles'
+import { SparklesText } from '@/components/ui/sparkles-text'
+import { HyperText } from '@/components/ui/hyper-text'
+import { BorderBeam } from '@/components/ui/border-beam'
+import { GradientOrbs } from '@/components/ui/gradient-orbs'
+import { ScrollReveal } from '@/components/ui/scroll-reveal'
+import { ParallaxScroll } from '@/components/ui/parallax-scroll'
 import { motion } from 'framer-motion'
-import { Shield, Zap, Users, Award } from 'lucide-react'
+import { Shield, Zap, Users, Award, Sparkles, Globe } from 'lucide-react'
 
 export function HeroSection() {
     return (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-            {/* Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-did-dark via-slate-900 to-did-dark" />
-            <div className="absolute inset-0 grid-bg opacity-20" />
-
-            {/* Floating Elements */}
-            <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-r from-did-electric/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse floating" />
+        <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-navy-950">
+            {/* Modern Background Effects */}
+            <Particles
+                className="absolute inset-0"
+                quantity={80}
+                color="#8B5CF6"
+                staticity={50}
+                ease={50}
+            />
+            <GradientOrbs />
 
             <div className="relative z-10 container mx-auto px-4 text-center">
                 <motion.div
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="max-w-4xl mx-auto"
+                    className="max-w-5xl mx-auto"
                 >
-                    {/* Hero Title */}
-                    <h1 className="text-6xl md:text-8xl font-bold mb-6 leading-tight">
-                        <span className="gradient-text">Decentralized</span>
-                        <br />
-                        <span className="text-white">Identity</span>
-                        <br />
-                        <span className="text-did-electric">Platform</span>
-                    </h1>
+                    {/* Sparkles Hero Title */}
+                    <div className="mb-8 flex items-center justify-center">
+                        <SparklesText
+                            className="text-6xl md:text-7xl lg:text-8xl font-black"
+                            colors={{ first: '#8B5CF6', second: '#EC4899' }}
+                            sparklesCount={12}
+                        >
+                            Decentralized Identity
+                        </SparklesText>
+                    </div>
 
-                    {/* Hero Description */}
-                    <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
+                    {/* Subtitle with Animated Gradient */}
+                    <motion.p
+                        className="text-xl md:text-2xl mb-4 max-w-3xl mx-auto leading-relaxed text-gray-300"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                    >
                         Build trust through verifiable credentials, zero-knowledge proofs, and
                         seamless Web3 identity management.
-                    </p>
+                    </motion.p>
+
+                    <motion.div
+                        className="flex items-center justify-center gap-2 text-purple-400 mb-12"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.7 }}
+                    >
+                        <Sparkles className="w-5 h-5" />
+                        <span className="text-sm font-medium">Powered by Blockchain Technology</span>
+                        <Sparkles className="w-5 h-5" />
+                    </motion.div>
 
                     {/* CTA Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+                    <motion.div
+                        className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.9 }}
+                    >
                         <ConnectButton.Custom>
                             {({ account, chain, openConnectModal, mounted }) => {
                                 return (
                                     <Button
                                         onClick={openConnectModal}
-                                        variant="electric"
-                                        size="xl"
-                                        className="animate-pulse-glow"
+                                        size="lg"
+                                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold shadow-lg shadow-purple-500/50 transition-all duration-500 text-lg px-8 py-6"
                                     >
                                         <Zap className="w-5 h-5 mr-2" />
-                                        {account ? 'Connected' : 'Connect Wallet'}
+                                        <HyperText className="inline-block" duration={800}>
+                                            {account ? 'Connected' : 'Connect Wallet'}
+                                        </HyperText>
                                     </Button>
                                 )
                             }}
                         </ConnectButton.Custom>
 
                         <Button
-                            variant="outline"
-                            size="xl"
-                            className="glass border-white/20 hover:bg-white/10"
+                            size="lg"
+                            className="border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10 backdrop-blur-sm bg-transparent font-bold text-lg px-8 py-6"
                         >
-                            <Shield className="w-5 h-5 mr-2" />
-                            Learn More
+                            <Globe className="w-5 h-5 mr-2" />
+                            <HyperText className="inline-block" duration={800}>
+                                Explore Platform
+                            </HyperText>
                         </Button>
-                    </div>
+                    </motion.div>
 
-                    {/* Feature Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
-                        >
-                            <Card className="glass p-6 text-center border-white/10 hover:border-did-electric/30 transition-all duration-300">
-                                <Shield className="w-12 h-12 text-did-electric mx-auto mb-4" />
-                                <h3 className="text-xl font-semibold text-white mb-2">Secure Identity</h3>
-                                <p className="text-gray-400">
-                                    Register and manage your decentralized identity with blockchain security
-                                </p>
-                            </Card>
-                        </motion.div>
+                    {/* Feature Cards with Border Beams */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                        <ScrollReveal delay={0} direction="up">
+                            <ParallaxScroll speed={0.3}>
+                                <Card className="relative overflow-hidden glass p-8 text-center hover:scale-105 transition-all duration-300 border-white/10">
+                                    <BorderBeam size={120} duration={8} colorFrom="#06B6D4" colorTo="#8B5CF6" />
+                                    <Shield className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
+                                    <h3 className="text-2xl font-bold text-white mb-3">Secure Identity</h3>
+                                    <p className="text-gray-300">
+                                        Register and manage your decentralized identity with blockchain security
+                                    </p>
+                                </Card>
+                            </ParallaxScroll>
+                        </ScrollReveal>
 
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.4 }}
-                        >
-                            <Card className="glass p-6 text-center border-white/10 hover:border-did-electric/30 transition-all duration-300">
-                                <Users className="w-12 h-12 text-did-electric mx-auto mb-4" />
-                                <h3 className="text-xl font-semibold text-white mb-2">Trust Network</h3>
-                                <p className="text-gray-400">
-                                    Build reputation through verified credentials and community trust
-                                </p>
-                            </Card>
-                        </motion.div>
+                        <ScrollReveal delay={0.2} direction="up">
+                            <ParallaxScroll speed={0.5}>
+                                <Card className="relative overflow-hidden glass p-8 text-center hover:scale-105 transition-all duration-300 border-white/10">
+                                    <BorderBeam size={120} duration={10} colorFrom="#EC4899" colorTo="#8B5CF6" delay={2} />
+                                    <Users className="w-16 h-16 text-pink-400 mx-auto mb-4" />
+                                    <h3 className="text-2xl font-bold text-white mb-3">Trust Network</h3>
+                                    <p className="text-gray-300">
+                                        Build reputation through verified credentials and community trust
+                                    </p>
+                                </Card>
+                            </ParallaxScroll>
+                        </ScrollReveal>
 
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.6 }}
-                        >
-                            <Card className="glass p-6 text-center border-white/10 hover:border-did-electric/30 transition-all duration-300">
-                                <Award className="w-12 h-12 text-did-electric mx-auto mb-4" />
-                                <h3 className="text-xl font-semibold text-white mb-2">Certificates</h3>
-                                <p className="text-gray-400">
-                                    Issue and manage verifiable certificates as NFTs
-                                </p>
-                            </Card>
-                        </motion.div>
+                        <ScrollReveal delay={0.4} direction="up">
+                            <ParallaxScroll speed={0.7}>
+                                <Card className="relative overflow-hidden glass p-8 text-center hover:scale-105 transition-all duration-300 border-white/10">
+                                    <BorderBeam size={120} duration={7} colorFrom="#10B981" colorTo="#06B6D4" delay={4} />
+                                    <Award className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
+                                    <h3 className="text-2xl font-bold text-white mb-3">Certificates</h3>
+                                    <p className="text-gray-300">
+                                        Issue and manage verifiable certificates as NFTs
+                                    </p>
+                                </Card>
+                            </ParallaxScroll>
+                        </ScrollReveal>
                     </div>
                 </motion.div>
             </div>
