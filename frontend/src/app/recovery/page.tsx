@@ -1,428 +1,236 @@
-'use client'
+"use client";
 
-import { MainLayout } from '@/components/layout/MainLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-    Shield,
-    Users,
-    Key,
-    Smartphone,
-    Mail,
-    UserPlus,
-    UserMinus,
-    AlertTriangle,
-    CheckCircle,
-    Clock,
-    Plus,
-    Settings,
-    Eye,
-    EyeOff
-} from 'lucide-react'
+import { motion } from "framer-motion";
+import { KeyRound, Shield, Users, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { MagneticCard } from "@/components/ui/magnetic-card";
 
-interface Guardian {
-    id: string
-    address: string
-    name?: string
-    email?: string
-    phone?: string
-    status: 'active' | 'pending' | 'removed'
-    addedDate: Date
-    lastActivity?: Date
-    trustScore: number
-}
-
-interface RecoveryMethod {
-    id: string
-    type: 'social' | 'email' | 'phone' | 'hardware' | 'seed'
-    name: string
-    description: string
-    icon: any
-    enabled: boolean
-    lastUsed?: Date
-    strength: 'high' | 'medium' | 'low'
-}
-
-const guardians: Guardian[] = [
-    {
-        id: '1',
-        address: '0x1234...5678',
-        name: 'John Smith',
-        email: 'john@example.com',
-        status: 'active',
-        addedDate: new Date('2023-08-15'),
-        lastActivity: new Date('2024-01-15'),
-        trustScore: 95
-    },
-    {
-        id: '2',
-        address: '0x5678...9012',
-        name: 'Alice Johnson',
-        email: 'alice@example.com',
-        status: 'active',
-        addedDate: new Date('2023-09-20'),
-        lastActivity: new Date('2024-01-10'),
-        trustScore: 88
-    },
-    {
-        id: '3',
-        address: '0x9012...3456',
-        name: 'Bob Wilson',
-        email: 'bob@example.com',
-        status: 'pending',
-        addedDate: new Date('2024-01-20'),
-        trustScore: 0
-    }
-]
-
-const recoveryMethods: RecoveryMethod[] = [
-    {
-        id: '1',
-        type: 'social',
-        name: 'Social Recovery',
-        description: 'Recover using trusted guardians (2 of 3 required)',
-        icon: Users,
-        enabled: true,
-        lastUsed: new Date('2023-12-01'),
-        strength: 'high'
-    },
-    {
-        id: '2',
-        type: 'email',
-        name: 'Email Recovery',
-        description: 'Recover using verified email address',
-        icon: Mail,
-        enabled: true,
-        strength: 'medium'
-    },
-    {
-        id: '3',
-        type: 'phone',
-        name: 'SMS Recovery',
-        description: 'Recover using verified phone number',
-        icon: Smartphone,
-        enabled: true,
-        strength: 'medium'
-    },
-    {
-        id: '4',
-        type: 'hardware',
-        name: 'Hardware Key',
-        description: 'Recover using hardware security key',
-        icon: Key,
-        enabled: false,
-        strength: 'high'
-    },
-    {
-        id: '5',
-        type: 'seed',
-        name: 'Seed Phrase',
-        description: 'Recover using 12-word seed phrase',
-        icon: Shield,
-        enabled: false,
-        strength: 'high'
-    }
-]
-
-function getStatusBadge(status: Guardian['status']) {
-    switch (status) {
-        case 'active':
-            return <Badge variant="success">Active</Badge>
-        case 'pending':
-            return <Badge variant="secondary">Pending</Badge>
-        case 'removed':
-            return <Badge variant="destructive">Removed</Badge>
-        default:
-            return <Badge variant="outline">Unknown</Badge>
-    }
-}
-
-function getStrengthColor(strength: RecoveryMethod['strength']) {
-    switch (strength) {
-        case 'high':
-            return 'text-green-500'
-        case 'medium':
-            return 'text-yellow-500'
-        case 'low':
-            return 'text-red-500'
-        default:
-            return 'text-gray-500'
-    }
-}
+const guardians = [
+  {
+    id: 1,
+    name: "Alice Johnson",
+    address: "0x1234...5678",
+    verified: true,
+    addedDate: "March 2024",
+  },
+  {
+    id: 2,
+    name: "Bob Smith",
+    address: "0xabcd...efgh",
+    verified: true,
+    addedDate: "February 2024",
+  },
+  {
+    id: 3,
+    name: "Carol White",
+    address: "0x9876...5432",
+    verified: false,
+    addedDate: "March 2024",
+  },
+];
 
 export default function RecoveryPage() {
-    const activeGuardians = guardians.filter(g => g.status === 'active')
-    const pendingGuardians = guardians.filter(g => g.status === 'pending')
-    const enabledMethods = recoveryMethods.filter(m => m.enabled)
+  const [showAddGuardian, setShowAddGuardian] = useState(false);
+  const [recoveryThreshold, setRecoveryThreshold] = useState(2);
 
-    return (
-        <MainLayout>
-            <div className="container mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground mb-2">
-                            Account Recovery
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Manage your account recovery options and trusted guardians
-                        </p>
-                    </div>
-                    <div className="flex gap-2 mt-4 md:mt-0">
-                        <Button variant="outline">
-                            <Settings className="h-4 w-4 mr-2" />
-                            Settings
-                        </Button>
-                        <Button variant="electric">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Guardian
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Security Overview */}
-                <Card className="glass mb-8">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Shield className="h-5 w-5" />
-                            Security Overview
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-green-500 mb-2">
-                                    {activeGuardians.length}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    Active Guardians
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-did-electric mb-2">
-                                    {enabledMethods.length}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    Recovery Methods
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-yellow-500 mb-2">
-                                    {Math.round(activeGuardians.reduce((sum, g) => sum + g.trustScore, 0) / activeGuardians.length || 0)}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    Avg Guardian Trust
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Guardians Management */}
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center justify-between">
-                                    <span className="flex items-center gap-2">
-                                        <Users className="h-5 w-5" />
-                                        Trusted Guardians
-                                    </span>
-                                    <Button variant="outline" size="sm">
-                                        <UserPlus className="h-4 w-4 mr-2" />
-                                        Add Guardian
-                                    </Button>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {guardians.map((guardian) => (
-                                        <div
-                                            key={guardian.id}
-                                            className="flex items-center justify-between p-4 border border-border/10 rounded-lg"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 bg-gradient-to-br from-did-electric to-did-cyber rounded-full flex items-center justify-center">
-                                                    <Users className="h-5 w-5 text-white" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium">
-                                                        {guardian.name || `Guardian ${guardian.id}`}
-                                                    </h4>
-                                                    <p className="text-sm text-muted-foreground font-mono">
-                                                        {guardian.address}
-                                                    </p>
-                                                    {guardian.email && (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {guardian.email}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {getStatusBadge(guardian.status)}
-                                                <Button variant="ghost" size="sm">
-                                                    <Settings className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {pendingGuardians.length > 0 && (
-                                    <div className="mt-6 pt-6 border-t border-border/10">
-                                        <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                                            Pending Invitations
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {pendingGuardians.map((guardian) => (
-                                                <div
-                                                    key={guardian.id}
-                                                    className="flex items-center justify-between p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg"
-                                                >
-                                                    <div>
-                                                        <p className="font-medium text-sm">
-                                                            {guardian.name || guardian.address}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Invited {guardian.addedDate.toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                    <Button variant="outline" size="sm">
-                                                        <UserMinus className="h-3 w-3 mr-1" />
-                                                        Cancel
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Emergency Contacts */}
-                        <Card className="border-red-500/20 bg-red-500/5">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
-                                    <AlertTriangle className="h-5 w-5" />
-                                    Emergency Recovery
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-red-600 dark:text-red-400 mb-4">
-                                    If you lose access to your account, you can initiate emergency recovery.
-                                    This requires {Math.ceil(activeGuardians.length * 0.6)} out of {activeGuardians.length} guardians to approve.
-                                </p>
-                                <Button variant="destructive" className="w-full">
-                                    <AlertTriangle className="h-4 w-4 mr-2" />
-                                    Start Emergency Recovery
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Recovery Methods */}
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Key className="h-5 w-5" />
-                                    Recovery Methods
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {recoveryMethods.map((method) => {
-                                        const Icon = method.icon
-                                        return (
-                                            <div
-                                                key={method.id}
-                                                className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${method.enabled
-                                                        ? 'border-green-500/20 bg-green-500/5'
-                                                        : 'border-border/10 bg-muted/5'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-lg ${method.enabled ? 'bg-green-500/10' : 'bg-muted/10'
-                                                        }`}>
-                                                        <Icon className={`h-5 w-5 ${method.enabled ? 'text-green-500' : 'text-muted-foreground'
-                                                            }`} />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-medium">{method.name}</h4>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {method.description}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className={`text-xs font-medium ${getStrengthColor(method.strength)}`}>
-                                                                {method.strength.toUpperCase()} SECURITY
-                                                            </span>
-                                                            {method.lastUsed && (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    • Last used {method.lastUsed.toLocaleDateString()}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {method.enabled ? (
-                                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                                    ) : (
-                                                        <Clock className="h-4 w-4 text-muted-foreground" />
-                                                    )}
-                                                    <Button
-                                                        variant={method.enabled ? "outline" : "electric"}
-                                                        size="sm"
-                                                    >
-                                                        {method.enabled ? "Configure" : "Enable"}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Backup Codes */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center justify-between">
-                                    <span className="flex items-center gap-2">
-                                        <Key className="h-5 w-5" />
-                                        Backup Codes
-                                    </span>
-                                    <Button variant="outline" size="sm">
-                                        <Eye className="h-4 w-4 mr-2" />
-                                        View Codes
-                                    </Button>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    Backup codes can be used to recover your account if other methods fail.
-                                    Store them securely offline.
-                                </p>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span>Generated:</span>
-                                        <span className="font-medium">Dec 15, 2023</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span>Codes remaining:</span>
-                                        <span className="font-medium">8/10</span>
-                                    </div>
-                                </div>
-                                <Button variant="outline" className="w-full mt-4">
-                                    Generate New Codes
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
+  return (
+    <div className="min-h-screen pt-20 pb-32 px-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30">
+              <KeyRound className="w-8 h-8 text-purple-400" />
             </div>
-        </MainLayout>
-    )
+          </div>
+          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">
+            Account Recovery
+          </h1>
+          <p className="text-gray-400 text-lg">Manage your guardians and recovery settings</p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recovery Settings */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="lg:col-span-1"
+          >
+            <MagneticCard>
+              <div className="p-6 backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-3xl border border-white/10 h-full">
+                <Shield className="w-8 h-8 text-purple-400 mb-4" />
+                <h3 className="text-xl font-bold text-white mb-6">Recovery Settings</h3>
+
+                {/* Recovery Threshold */}
+                <div className="mb-6">
+                  <label className="text-sm text-gray-400 mb-3 block">
+                    Recovery Threshold
+                  </label>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setRecoveryThreshold(num)}
+                        className={`w-full p-3 rounded-lg border transition-all text-left ${
+                          recoveryThreshold === num
+                            ? "bg-purple-500/20 border-purple-500/50 text-white"
+                            : "bg-white/5 border-white/10 text-gray-400 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>
+                            Require {num} of {guardians.length} guardians
+                          </span>
+                          {recoveryThreshold === num && (
+                            <CheckCircle2 className="w-5 h-5 text-purple-400" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+                  <div className="flex items-center gap-2 text-green-400 mb-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="font-medium">Recovery Active</span>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Your account is protected by {guardians.filter(g => g.verified).length} verified guardians
+                  </p>
+                </div>
+
+                {/* Emergency Recovery */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full mt-6 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 hover:shadow-lg hover:shadow-red-500/50 transition-all flex items-center justify-center gap-2"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  Initiate Recovery
+                </motion.button>
+              </div>
+            </MagneticCard>
+          </motion.div>
+
+          {/* Guardians List */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="lg:col-span-2"
+          >
+            <MagneticCard>
+              <div className="p-6 backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-3xl border border-white/10">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Users className="w-6 h-6 text-purple-400" />
+                    <h3 className="text-xl font-bold text-white">Your Guardians</h3>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAddGuardian(!showAddGuardian)}
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-lg hover:shadow-purple-500/50 transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Guardian
+                  </motion.button>
+                </div>
+
+                {/* Add Guardian Form */}
+                {showAddGuardian && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Guardian Name"
+                      className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none mb-3"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ethereum Address (0x...)"
+                      className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none mb-3"
+                    />
+                    <div className="flex gap-3">
+                      <button className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-lg hover:shadow-purple-500/50 transition-all">
+                        Add Guardian
+                      </button>
+                      <button
+                        onClick={() => setShowAddGuardian(false)}
+                        className="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Guardians List */}
+                <div className="space-y-4">
+                  {guardians.map((guardian, index) => (
+                    <motion.div
+                      key={guardian.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + index * 0.1 }}
+                      className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-white font-medium">{guardian.name}</h4>
+                            {guardian.verified && (
+                              <div className="px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Verified
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-gray-400 text-sm font-mono">{guardian.address}</p>
+                          <p className="text-gray-500 text-xs mt-1">Added {guardian.addedDate}</p>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="p-2 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5 text-red-400" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Info Box */}
+                <div className="mt-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-blue-400 font-medium mb-1">How Recovery Works</h4>
+                      <p className="text-gray-400 text-sm">
+                        If you lose access to your account, your guardians can help you recover it. 
+                        The number of guardians required is based on your recovery threshold setting.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </MagneticCard>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
 }

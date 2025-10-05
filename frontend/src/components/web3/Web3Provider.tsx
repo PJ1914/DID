@@ -1,36 +1,37 @@
-'use client'
+"use client"
 
-import { WagmiProvider, createConfig, http } from 'wagmi'
-import { mainnet, sepolia, hardhat } from 'wagmi/chains'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RainbowKitProvider, getDefaultConfig } from '@rainbow-me/rainbowkit'
-import { ReactNode } from 'react'
-
-const config = getDefaultConfig({
-    appName: 'DID Platform',
-    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'your-project-id',
-    chains: [mainnet, sepolia, hardhat],
-    transports: {
-        [mainnet.id]: http(),
-        [sepolia.id]: http(),
-        [hardhat.id]: http('http://127.0.0.1:8545'),
-    },
-})
+import { ReactNode } from "react"
+import { WagmiProvider, createConfig, http } from "wagmi"
+import { sepolia, mainnet, localhost } from "wagmi/chains"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rainbowkit"
+import "@rainbow-me/rainbowkit/styles.css"
 
 const queryClient = new QueryClient()
 
-interface Web3ProviderProps {
-    children: ReactNode
-}
+const config = getDefaultConfig({
+  appName: "DID Platform",
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
+  chains: [sepolia, localhost],
+  transports: {
+    [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL),
+    [localhost.id]: http(),
+  },
+  ssr: true,
+})
 
-export function Web3Provider({ children }: Web3ProviderProps) {
-    return (
-        <WagmiProvider config={config}>
-            <QueryClientProvider client={queryClient}>
-                <RainbowKitProvider>
-                    {children}
-                </RainbowKitProvider>
-            </QueryClientProvider>
-        </WagmiProvider>
-    )
+export function Web3Provider({ children }: { children: ReactNode }) {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider theme={darkTheme({
+          accentColor: "#00D4FF",
+          accentColorForeground: "white",
+          borderRadius: "medium",
+        })}>
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  )
 }

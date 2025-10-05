@@ -1,41 +1,25 @@
-import { useReadContract, useWriteContract } from 'wagmi'
-import { useChainId } from 'wagmi'
-import { getContractAddress } from '@/contracts/addresses'
-import type { TrustScoreEvent } from '@/types'
+import { useReadContract } from 'wagmi';
+import { getContractAddress } from '@/config/contracts';
+import { TRUST_SCORE_ABI } from '@/config/abis';
+import { useAccount } from 'wagmi';
 
-// Mock ABI for now - replace with actual ABI when available
-const TrustScoreABI = [] as const
+export function useTrustScore(userAddress?: `0x${string}`) {
+  const { address, chainId } = useAccount();
+  const targetAddress = userAddress || address;
 
-export function useTrustScore() {
-    const chainId = useChainId()
-    const contractAddress = chainId ? getContractAddress(chainId, 'trustScore') : undefined
+  const { data: trustScore, isLoading, refetch } = useReadContract({
+    address: chainId ? getContractAddress(chainId, 'trustScore') as `0x${string}` : undefined,
+    abi: TRUST_SCORE_ABI,
+    functionName: 'getTrustScore',
+    args: targetAddress ? [targetAddress] : undefined,
+    query: {
+      enabled: !!targetAddress && !!chainId,
+    },
+  });
 
-    const useGetScore = (identityId?: string) => {
-        return useReadContract({
-            address: contractAddress as `0x${string}`,
-            abi: TrustScoreABI,
-            functionName: 'getScore',
-            args: identityId ? [identityId] : undefined,
-        })
-    }
-
-    const useIncreaseScore = () => {
-        return useWriteContract()
-    }
-
-    const useDecreaseScore = () => {
-        return useWriteContract()
-    }
-
-    const useSetScore = () => {
-        return useWriteContract()
-    }
-
-    return {
-        contractAddress,
-        useGetScore,
-        useIncreaseScore,
-        useDecreaseScore,
-        useSetScore,
-    }
+  return {
+    trustScore: trustScore ? Number(trustScore) : 0,
+    isLoading,
+    refetch,
+  };
 }

@@ -1,33 +1,34 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
+"use client";
 
-interface GlassCardProps {
-    children: React.ReactNode;
-    className?: string;
-    blur?: 'sm' | 'md' | 'lg' | 'xl';
-    noPadding?: boolean;
-    hoverable?: boolean;
+import React from "react";
+import { cn } from "@/lib/utils";
+
+export interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
+    blur?: "sm" | "md" | "lg";
+    gradient?: boolean;
 }
 
-const blurMap = {
-    sm: 'backdrop-blur-sm',
-    md: 'backdrop-blur-md',
-    lg: 'backdrop-blur-lg',
-    xl: 'backdrop-blur-xl'
-};
+const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
+    ({ className, blur = "md", gradient = true, children, ...props }, ref) => {
+        const blurClasses = {
+            sm: "backdrop-blur-sm",
+            md: "backdrop-blur-md",
+            lg: "backdrop-blur-lg",
+        };
 
-export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
-    ({ children, className, blur = 'md', noPadding = false, hoverable = false }, ref) => {
         return (
             <div
                 ref={ref}
                 className={cn(
-                    'bg-white/5 border border-white/10 rounded-xl shadow-glass',
-                    blurMap[blur],
-                    !noPadding && 'p-6',
-                    hoverable && 'hover:shadow-glass-sm hover:border-white/20 transition-all duration-300',
+                    "relative rounded-2xl border transition-all duration-300",
+                    blurClasses[blur],
+                    gradient
+                        ? "bg-gradient-to-br from-white/10 to-white/5 border-white/10 hover:border-[#00D4FF]/50"
+                        : "bg-white/5 border-white/10",
+                    "hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(0,212,255,0.2)]",
                     className
                 )}
+                {...props}
             >
                 {children}
             </div>
@@ -35,4 +36,6 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
     }
 );
 
-GlassCard.displayName = 'GlassCard';
+GlassCard.displayName = "GlassCard";
+
+export { GlassCard };
