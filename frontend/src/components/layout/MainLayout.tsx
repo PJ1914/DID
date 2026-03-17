@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react"
 import BottomNavigation from "./BottomNavigation"
-import { ConnectWallet } from "@/components/ConnectWallet"
+import { AccountMenu } from "./AccountMenu"
 import { Shield } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -24,14 +24,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
           >
             <Shield className="w-5 h-5 text-purple-400" />
             <span className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              DID Platform
+              Sajjan
             </span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <ConnectWallet />
+            <AccountMenu />
           </motion.div>
         </div>
       </div>

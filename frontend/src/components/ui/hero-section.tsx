@@ -57,7 +57,7 @@ export default function HeroSection() {
 
                     <div className="mb-10 sm:mb-0 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link
-                            href="/identity"
+                            href="/bc-cvs/student"
                             className="group relative w-full overflow-hidden rounded-full border border-[#00D4FF]/30 bg-gradient-to-b from-[#00D4FF]/20 to-[#9C40FF]/10 px-8 py-4 text-white shadow-lg transition-all duration-300 hover:border-[#00D4FF]/50 hover:shadow-[0_0_20px_rgba(0,212,255,0.5)] sm:w-auto"
                         >
                             <span className="relative z-10">Create Identity</span>

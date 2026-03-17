@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
     Home,
     Shield,
@@ -10,21 +10,73 @@ import {
     Building2,
     Award,
     KeyRound,
+    Wallet,
     Sparkles,
+    FileCheck,
+    Clock,
+    Users,
 } from "lucide-react";
-
-const navItems = [
-    { icon: Home, label: "Home", href: "/", color: "#A78BFA" },
-    { icon: Shield, label: "Identity", href: "/identity", color: "#EC4899" },
-    { icon: CheckCircle2, label: "Verify", href: "/verify", color: "#8B5CF6" },
-    { icon: Building2, label: "Orgs", href: "/organizations", color: "#A78BFA" },
-    { icon: Award, label: "Certs", href: "/certificates", color: "#EC4899" },
-    { icon: KeyRound, label: "Recovery", href: "/recovery", color: "#8B5CF6" },
-];
+import { useRoles } from "@/hooks/useRoles";
 
 export default function BottomNavigation() {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
+    const { isInstitute, isStudent, isVerifier, hasAnyRole } = useRoles();
+
+    // Dynamically generate navigation items based on user role
+    const navItems = useMemo(() => {
+        const baseItems = [
+            { icon: Home, label: "Home", href: "/", color: "#A78BFA", roles: ["all"] },
+        ];
+
+        if (!hasAnyRole) {
+            // If no role, only show home and dashboard
+            return [
+                ...baseItems,
+                { icon: Shield, label: "Dashboard", href: "/bc-cvs/dashboard", color: "#EC4899", roles: ["all"] },
+            ];
+        }
+
+        // Institute-specific navigation
+        if (isInstitute) {
+            return [
+                ...baseItems,
+                { icon: Building2, label: "Dashboard", href: "/bc-cvs/institute", color: "#EC4899", roles: ["institute"] },
+                { icon: FileCheck, label: "Issue Cert", href: "/bc-cvs/institute/issue-certificate", color: "#8B5CF6", roles: ["institute"] },
+                { icon: Users, label: "Voting", href: "/bc-cvs/institute/validator-voting", color: "#A78BFA", roles: ["institute"] },
+                { icon: Clock, label: "Activity", href: "/bc-cvs/institute/dashboard", color: "#EC4899", roles: ["institute"] },
+            ];
+        }
+
+        // Student-specific navigation
+        if (isStudent) {
+            return [
+                ...baseItems,
+                { icon: Award, label: "Dashboard", href: "/bc-cvs/student", color: "#EC4899", roles: ["student"] },
+                { icon: KeyRound, label: "My Certs", href: "/bc-cvs/student/my-certificates", color: "#8B5CF6", roles: ["student"] },
+                { icon: Shield, label: "Share", href: "/bc-cvs/student/share", color: "#A78BFA", roles: ["student"] },
+                { icon: Wallet, label: "Wallet", href: "/bc-cvs/student/wallet", color: "#60A5FA", roles: ["student"] },
+                { icon: Clock, label: "History", href: "/bc-cvs/student/history", color: "#EC4899", roles: ["student"] },
+            ];
+        }
+
+        // Verifier-specific navigation
+        if (isVerifier) {
+            return [
+                ...baseItems,
+                { icon: CheckCircle2, label: "Dashboard", href: "/bc-cvs/verifier", color: "#EC4899", roles: ["verifier"] },
+                { icon: FileCheck, label: "Verify", href: "/bc-cvs/verifier/verify-certificate", color: "#8B5CF6", roles: ["verifier"] },
+                { icon: Shield, label: "Bulk Verify", href: "/bc-cvs/verifier/bulk-verification", color: "#A78BFA", roles: ["verifier"] },
+                { icon: Clock, label: "History", href: "/bc-cvs/verifier/history", color: "#EC4899", roles: ["verifier"] },
+            ];
+        }
+
+        // Default fallback
+        return [
+            ...baseItems,
+            { icon: Shield, label: "Dashboard", href: "/bc-cvs/dashboard", color: "#EC4899", roles: ["all"] },
+        ];
+    }, [isInstitute, isStudent, isVerifier, hasAnyRole]);
 
     return (
         <motion.div
@@ -65,11 +117,7 @@ export default function BottomNavigation() {
                                         {isActive && (
                                             <motion.div
                                                 layoutId="activeTab"
-                                                className="absolute inset-0 rounded-full"
-                                                style={{
-                                                    background: `linear-gradient(135deg, ${item.color}30, ${item.color}10)`,
-                                                    border: `1px solid ${item.color}40`,
-                                                }}
+                                                className="absolute inset-0 rounded-full bg-white/10 border border-white/30"
                                                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                             />
                                         )}
@@ -86,16 +134,13 @@ export default function BottomNavigation() {
                                             {/* Glow Ring */}
                                             {isHovered && (
                                                 <motion.div
-                                                    className="absolute inset-0 rounded-full"
+                                                    className="absolute inset-0 rounded-full border-2 border-purple-300/80"
                                                     initial={{ scale: 1, opacity: 0 }}
                                                     animate={{ scale: 1.5, opacity: 0 }}
                                                     transition={{
                                                         duration: 1,
                                                         repeat: Infinity,
                                                         ease: "easeOut",
-                                                    }}
-                                                    style={{
-                                                        border: `2px solid ${item.color}`,
                                                     }}
                                                 />
                                             )}
@@ -135,10 +180,8 @@ export default function BottomNavigation() {
                                         {/* Label */}
                                         <motion.span
                                             className="text-xs font-medium whitespace-nowrap relative z-10"
-                                            style={{
-                                                color: isActive || isHovered ? item.color : "#ffffff60",
-                                            }}
                                             animate={{
+                                                color: isActive || isHovered ? item.color : "#ffffff60",
                                                 opacity: isHovered || isActive ? 1 : 0.6,
                                                 y: isHovered ? -2 : 0,
                                             }}
@@ -146,26 +189,6 @@ export default function BottomNavigation() {
                                             {item.label}
                                         </motion.span>
                                     </motion.div>
-
-                                    {/* Hover Tooltip */}
-                                    {isHovered && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: -60 }}
-                                            exit={{ opacity: 0, y: 10 }}
-                                            className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg backdrop-blur-xl bg-black/60 border whitespace-nowrap text-sm"
-                                            style={{
-                                                borderColor: `${item.color}40`,
-                                                color: item.color,
-                                            }}
-                                        >
-                                            {item.label}
-                                            <motion.div
-                                                className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 w-2 h-2 rotate-45 bg-black/60"
-                                                style={{ borderRight: `1px solid ${item.color}40`, borderBottom: `1px solid ${item.color}40` }}
-                                            />
-                                        </motion.div>
-                                    )}
                                 </Link>
                             );
                         })}

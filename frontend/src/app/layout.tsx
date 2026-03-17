@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/components/web3/Web3Provider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import MainLayout from "@/components/layout/MainLayout";
+import { FirebaseSetupBanner } from "@/components/firebase/FirebaseSetupBanner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -30,8 +32,11 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} antialiased font-sans`}
         suppressHydrationWarning
       >
+        <FirebaseSetupBanner />
         <Web3Provider>
-          <MainLayout>{children}</MainLayout>
+          <AuthProvider>
+            <MainLayout>{children}</MainLayout>
+          </AuthProvider>
         </Web3Provider>
       </body>
     </html>

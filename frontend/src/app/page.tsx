@@ -1,16 +1,27 @@
 'use client'
 
-import MainLayout from '@/components/layout/MainLayout'
 import { MagneticCard } from '@/components/ui/magnetic-card'
 import { Spotlight } from '@/components/ui/spotlight'
 import AnimatedBackground from '@/components/ui/animated-background'
 import { ScrollGradient } from '@/components/ui/scroll-gradient'
 import { Shield, Users, Award, Lock, FileCheck, Globe } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount } from 'wagmi'
+import { useRouter } from 'next/navigation'
 
 export default function HomePage() {
+  const { isConnected } = useAccount()
+  const router = useRouter()
+
+  const handleGetStarted = () => {
+    if (isConnected) {
+      router.push('/bc-cvs/dashboard')
+    }
+  }
+
   return (
-    <MainLayout>
+    <>
       {/* Animated 3D Background */}
       <AnimatedBackground />
 
@@ -24,32 +35,44 @@ export default function HomePage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 mb-6">
-                <Shield className="w-4 h-4 text-purple-400" />
-                <span className="text-sm text-white/60">Decentralized Identity Platform</span>
+                <Shield className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm text-white/60">Blockchain Certificate Verification System</span>
               </div>
 
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">
-                Your Digital Identity,
+              <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Secure Certificate
                 <br />
-                Your Control
+                Verification on Blockchain
               </h1>
 
               <p className="text-xl text-white/60 mb-12 max-w-2xl mx-auto">
-                Create, manage, and verify decentralized identities with blockchain-powered security and privacy.
+                Tamper-proof educational certificate storage and instant verification with cryptographic signatures and Ethereum blockchain.
               </p>
 
               <div className="flex flex-wrap gap-4 justify-center">
-                <MagneticCard>
-                  <button className="px-8 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-shadow">
-                    Get Started
-                  </button>
-                </MagneticCard>
+                <ConnectButton.Custom>
+                  {({ openConnectModal }) => (
+                    <>
+                      <MagneticCard>
+                        <button 
+                          onClick={isConnected ? handleGetStarted : openConnectModal}
+                          className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#00D4FF] to-[#9C40FF] text-white font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-shadow"
+                        >
+                          {isConnected ? 'Go to Dashboard' : 'Login'}
+                        </button>
+                      </MagneticCard>
 
-                <MagneticCard>
-                  <button className="px-8 py-4 rounded-xl bg-white/5 backdrop-blur-sm border border-purple-500/30 text-white font-semibold hover:bg-white/10 hover:border-purple-400/50 transition-all">
-                    Learn More
-                  </button>
-                </MagneticCard>
+                      <MagneticCard>
+                        <button 
+                          onClick={() => router.push('/bc-cvs/auth/register')}
+                          className="px-8 py-4 rounded-xl bg-white/5 backdrop-blur-sm border border-purple-500/30 text-white font-semibold hover:bg-white/10 hover:border-purple-400/50 transition-all"
+                        >
+                          Sign Up
+                        </button>
+                      </MagneticCard>
+                    </>
+                  )}
+                </ConnectButton.Custom>
               </div>
             </motion.div>
           </ScrollGradient>
@@ -66,11 +89,11 @@ export default function HomePage() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Platform Features
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              System Architecture
             </h2>
             <p className="text-white/60 text-lg">
-              Everything you need for secure identity management
+              Advanced features ensuring certificate authenticity and security
             </p>
           </motion.div>
 
@@ -105,6 +128,21 @@ export default function HomePage() {
       {/* Stats Section */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              Technical Specifications
+            </h2>
+            <p className="text-white/60 text-lg">
+              Built on enterprise-grade blockchain infrastructure
+            </p>
+          </motion.div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
               <Spotlight key={index}>
@@ -129,46 +167,46 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-    </MainLayout>
+    </>
   )
 }
 
 const features = [
   {
     icon: <Shield className="w-6 h-6 text-purple-400" />,
-    title: 'Secure Identity',
-    description: 'Blockchain-powered verification ensures your identity is protected and tamper-proof.',
+    title: 'Non-Repudiation',
+    description: 'Digital signature binding ensures certificates cannot be denied by the issuer.',
   },
   {
     icon: <Users className="w-6 h-6 text-purple-400" />,
-    title: 'Account Abstraction',
-    description: 'Simplified wallet management with gasless transactions and social recovery.',
+    title: 'Consensus Validation',
+    description: 'Multi-validator consensus mechanism for institutional registration and verification.',
   },
   {
     icon: <Award className="w-6 h-6 text-purple-400" />,
-    title: 'Digital Credentials',
-    description: 'Issue and verify certificates, licenses, and achievements on-chain.',
+    title: 'Hash-Based Storage',
+    description: 'Certificate hashes and RSA signatures stored immutably on Ethereum blockchain.',
   },
   {
     icon: <Lock className="w-6 h-6 text-purple-400" />,
-    title: 'Privacy First',
-    description: 'Zero-knowledge proofs protect your sensitive information.',
+    title: 'Attack Resistance',
+    description: 'Layered cybersecurity controls with Sybil attack mitigation and smart contract security.',
   },
   {
     icon: <FileCheck className="w-6 h-6 text-purple-400" />,
-    title: 'KYC Verification',
-    description: 'Streamlined identity verification with Aadhaar and biometric support.',
+    title: 'Bloom Filter Optimization',
+    description: 'Fast certificate lookup and scalability with probabilistic data structure.',
   },
   {
     icon: <Globe className="w-6 h-6 text-purple-400" />,
-    title: 'Interoperable',
-    description: 'Works across multiple blockchains and platforms seamlessly.',
+    title: 'Revocation Framework',
+    description: 'Secure certificate correction and revocation with complete audit trail.',
   },
 ]
 
 const stats = [
-  { value: '10K+', label: 'Active Users' },
-  { value: '50K+', label: 'Verifications' },
-  { value: '99.9%', label: 'Uptime' },
-  { value: '256-bit', label: 'Encryption' },
+  { value: 'Ethereum', label: 'Blockchain Network' },
+  { value: 'RSA-2048', label: 'Digital Signature' },
+  { value: 'SHA-256', label: 'Hash Algorithm' },
+  { value: 'Bloom Filter', label: 'Lookup Optimization' },
 ]

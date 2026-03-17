@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { cn } from "@/lib/utils"
 import { Shield, Home, Users, Award, FileCheck, Settings, Key } from "lucide-react"
+import { AccountMenu } from "./AccountMenu"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -55,8 +55,8 @@ export function Navigation() {
             })}
           </div>
 
-          {/* Connect Wallet Button */}
-          <ConnectButton />
+          {/* Account Menu with Login/Logout */}
+          <AccountMenu />
         </div>
       </div>
     </nav>
