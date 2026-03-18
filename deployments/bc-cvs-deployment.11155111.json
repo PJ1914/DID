@@ -1,0 +1,14 @@
+{
+  "network": {
+    "name": "sepolia",
+    "chainId": "11155111"
+  },
+  "deployer": "0x2293Cc1894C0e1DeE50856eec230A6372423d385",
+  "contracts": {
+    "bloomFilter": "0xCBb0205974Ec26E6376d50d0A0d5181D8c910626",
+    "revocationRegistry": "0x3F2BD3d8497648c8B7323e71D43F9FD0eAe2cf92",
+    "validatorConsensus": "0xFD4E070cd602EAF9e59B684839728c6C67C425E8",
+    "certificateHashRegistry": "0x6D2Fc93f04D90774CfBF028EBf21e0Ba99DCB096"
+  },
+  "timestamp": "2026-03-08T14:05:25.066Z"
+}

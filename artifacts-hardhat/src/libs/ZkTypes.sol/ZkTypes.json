@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ZkTypes",
+  "sourceName": "src/libs/ZkTypes.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601757603a9081601d823930815050f35b600080fdfe600080fdfea264697066735822122086abf415dd5bbf552a60d50afd51d4ac65b770f398ff91e6b0ec38273c8e3a1b64736f6c63430008140033",
+  "deployedBytecode": "0x600080fdfea264697066735822122086abf415dd5bbf552a60d50afd51d4ac65b770f398ff91e6b0ec38273c8e3a1b64736f6c63430008140033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

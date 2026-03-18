@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "VerificationTypes",
+  "sourceName": "src/libs/VerificationTypes.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601757603a9081601d823930815050f35b600080fdfe600080fdfea2646970667358221220730bd6504b7e5bebea2611131f8c6ddf64faf18ccdc4ca6486e9d2089f23d94c64736f6c63430008140033",
+  "deployedBytecode": "0x600080fdfea2646970667358221220730bd6504b7e5bebea2611131f8c6ddf64faf18ccdc4ca6486e9d2089f23d94c64736f6c63430008140033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

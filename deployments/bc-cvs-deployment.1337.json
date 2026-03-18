@@ -1,0 +1,14 @@
+{
+  "network": {
+    "name": "ganache",
+    "chainId": "1337"
+  },
+  "deployer": "0x2293Cc1894C0e1DeE50856eec230A6372423d385",
+  "contracts": {
+    "bloomFilter": "0xC390F9309E0f900FE31e9e3976868E59B314e0a4",
+    "revocationRegistry": "0xb6E01152087802FB3b90692ce123310FD9376105",
+    "validatorConsensus": "0x39cA06bf232cf0623E4c34f1544FB0C06a813c49",
+    "certificateHashRegistry": "0xD3749f0a65DA86AeE65245E07D13fe912F1cF182"
+  },
+  "timestamp": "2026-03-08T13:20:41.885Z"
+}
