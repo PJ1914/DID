@@ -83,7 +83,7 @@ export default function LoginPage() {
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Shield className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold mb-2">Welcome to Sajjan</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome to BC-CVS</h1>
             <p className="text-muted-foreground">
               Blockchain-based Certificate Verification System
             </p>

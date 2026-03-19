@@ -162,7 +162,7 @@ export default function IssueCertificatePage() {
 
     // Check if contracts are deployed
     if (!contractsDeployed) {
-      alert("⚠️ Smart Contracts Not Deployed!\n\nThe Sajjan contracts haven't been deployed to your local blockchain yet.\n\nFor now, this is a UI demo. To enable blockchain functionality:\n1. Deploy contracts using: forge script script/deploy/DeployEduCertCoreContracts.s.sol --broadcast\n2. Update contract addresses in frontend/.env")
+      alert("⚠️ Smart Contracts Not Deployed!\n\nThe BC-CVS contracts haven't been deployed to your local blockchain yet.\n\nFor now, this is a UI demo. To enable blockchain functionality:\n1. Deploy contracts using: forge script script/deploy/DeployEduCertCoreContracts.s.sol --broadcast\n2. Update contract addresses in frontend/.env")
       return
     }
 
@@ -313,7 +313,7 @@ export default function IssueCertificatePage() {
               <AlertDescription className="text-yellow-200">
                 <strong>Smart Contracts Not Deployed</strong>
                 <br />
-                The Sajjan contracts haven't been deployed to chain ID {chain?.id} yet. 
+                The BC-CVS contracts haven't been deployed to chain ID {chain?.id} yet. 
                 This is a UI demo. To enable blockchain functionality, deploy contracts using Foundry.
               </AlertDescription>
             </Alert>

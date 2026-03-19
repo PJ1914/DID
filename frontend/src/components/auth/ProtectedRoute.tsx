@@ -108,7 +108,7 @@ export default function ProtectedRoute({
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">No Role Assigned</h1>
           <p className="text-white/60 mb-6">
-            Your wallet does not have the required permissions to access Sajjan
+            Your wallet does not have the required permissions to access BC-CVS
           </p>
           <div className="text-sm text-white/60 space-y-2 text-left bg-white/5 rounded-lg p-4">
             <div>• <strong>Students:</strong> Receive holder role when issued a certificate</div>

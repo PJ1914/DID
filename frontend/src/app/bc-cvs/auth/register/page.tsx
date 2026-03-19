@@ -142,7 +142,7 @@ export default function RegisterPage() {
             </div>
             <h1 className="text-3xl font-bold mb-2">Create Account</h1>
             <p className="text-muted-foreground">
-              Join the Sajjan platform
+              Join the BC-CVS platform
             </p>
           </div>
 

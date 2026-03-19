@@ -1,8 +1,8 @@
-# Sajjan Role-Based Access Control (RBAC)
+# BC-CVS Role-Based Access Control (RBAC)
 
 ## Overview
 
-The Sajjan system implements role-based access control using smart contract roles stored on-chain. User roles are checked against the blockchain before granting access to specific pages.
+The BC-CVS system implements role-based access control using smart contract roles stored on-chain. User roles are checked against the blockchain before granting access to specific pages.
 
 ## Available Roles
 

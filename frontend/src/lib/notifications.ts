@@ -5,7 +5,7 @@ import {
   type VerificationNotification,
 } from "@/lib/firebase/firestore"
 
-const LOCAL_KEY_PREFIX = "sajjan-notifications-"
+const LOCAL_KEY_PREFIX = "bc-cvs-notifications-"
 
 export type AppNotification = VerificationNotification & {
   id: string
