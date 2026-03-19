@@ -1,5 +1,5 @@
 /**
- * Role constants for Sajjan contracts
+ * Role constants for BC-CVS contracts
  * These match the role definitions in src/libs/Roles.sol
  * Solidity: keccak256("ROLE_NAME") = keccak256 of UTF-8 bytes
  * viem:     keccak256(toBytes("ROLE_NAME")) = same result ✅
@@ -13,7 +13,7 @@ export const ADMINISTRATOR = keccak256(toBytes("ADMINISTRATOR"))
 export const VERIFIER = keccak256(toBytes("VERIFIER"))
 export const GUARDIAN = keccak256(toBytes("GUARDIAN"))
 
-// Sajjan roles
+// BC-CVS roles
 export const CERTIFICATE_ISSUER = keccak256(toBytes("CERTIFICATE_ISSUER"))
 export const CERTIFICATE_HOLDER = keccak256(toBytes("CERTIFICATE_HOLDER"))
 export const BLOOM_FILTER_MANAGER = keccak256(toBytes("BLOOM_FILTER_MANAGER"))

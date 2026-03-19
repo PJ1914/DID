@@ -9,7 +9,7 @@ export interface CertificateNFT {
   network: string
 }
 
-const KEY = "sajjan-certificate-nfts"
+const KEY = "bc-cvs-certificate-nfts"
 
 function loadAll(): CertificateNFT[] {
   try {

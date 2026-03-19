@@ -49,7 +49,7 @@ export default function DashboardPage() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h1>
           <p className="text-white/60 mb-6">
-            Please connect your wallet to access the Sajjan dashboard
+            Please connect your wallet to access the BC-CVS dashboard
           </p>
           <div className="text-sm text-white/40">
             Click the "Connect Wallet" button in the top right corner
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">No Role Assigned</h1>
           <p className="text-white/60 mb-6">
-            Your wallet address does not have any role assigned in the Sajjan system.
+            Your wallet address does not have any role assigned in the BC-CVS system.
           </p>
           <div className="text-sm text-white/60 space-y-3 text-left bg-white/5 rounded-lg p-4">
             <div>

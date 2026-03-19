@@ -1,5 +1,5 @@
 /**
- * Sajjan Contract ABIs
+ * BC-CVS Contract ABIs
  * Using proper JSON ABI format for compatibility
  */
 

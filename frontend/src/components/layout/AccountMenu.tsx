@@ -210,7 +210,7 @@ export function AccountMenu() {
               {/* Footer */}
               <div className="px-4 py-2 bg-white/5 border-t border-white/10">
                 <div className="text-xs text-white/40 text-center">
-                  Sajjan Platform
+                  BC-CVS Platform
                 </div>
               </div>
             </motion.div>

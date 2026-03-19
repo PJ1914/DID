@@ -98,7 +98,7 @@ export default function BCCVSPage() {
           className="text-center space-y-4 mb-16"
         >
           <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Sajjan Portal
+            BC-CVS Portal
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Blockchain & Cybersecurity-Based Certificate Verification System

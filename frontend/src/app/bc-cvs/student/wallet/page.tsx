@@ -44,7 +44,7 @@ export default function StudentWalletPage() {
       <div className="container px-4 py-8 mx-auto max-w-5xl space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5" /> Sajjan Student Identity Wallet</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5" /> BC-CVS Student Identity Wallet</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground break-all">Wallet Address: {address}</p>

@@ -14,7 +14,7 @@ export const contractAddresses = {
     recoveryManager: process.env.NEXT_PUBLIC_RECOVERY_MANAGER || "0x",
     sessionKeyManager: process.env.NEXT_PUBLIC_SESSION_KEY_MANAGER || "0x",
     alchemyGasManager: process.env.NEXT_PUBLIC_ALCHEMY_GAS_MANAGER || "0x",
-    // Sajjan System Contracts
+    // BC-CVS System Contracts
     bloomFilter: process.env.NEXT_PUBLIC_BLOOM_FILTER || "0x",
     revocationRegistry: process.env.NEXT_PUBLIC_REVOCATION_REGISTRY || "0x",
     validatorConsensus: process.env.NEXT_PUBLIC_VALIDATOR_CONSENSUS || "0x",
@@ -35,7 +35,7 @@ export const contractAddresses = {
     recoveryManager: process.env.NEXT_PUBLIC_RECOVERY_MANAGER || "0x",
     sessionKeyManager: process.env.NEXT_PUBLIC_SESSION_KEY_MANAGER || "0x",
     alchemyGasManager: process.env.NEXT_PUBLIC_ALCHEMY_GAS_MANAGER || "0x",
-    // Sajjan System Contracts
+    // BC-CVS System Contracts
     bloomFilter: process.env.NEXT_PUBLIC_BLOOM_FILTER || "0x",
     revocationRegistry: process.env.NEXT_PUBLIC_REVOCATION_REGISTRY || "0x",
     validatorConsensus: process.env.NEXT_PUBLIC_VALIDATOR_CONSENSUS || "0x",
@@ -56,7 +56,7 @@ export const contractAddresses = {
     recoveryManager: process.env.NEXT_PUBLIC_RECOVERY_MANAGER || "0x",
     sessionKeyManager: process.env.NEXT_PUBLIC_SESSION_KEY_MANAGER || "0x",
     alchemyGasManager: process.env.NEXT_PUBLIC_ALCHEMY_GAS_MANAGER || "0x",
-    // Sajjan System Contracts
+    // BC-CVS System Contracts
     bloomFilter: process.env.NEXT_PUBLIC_BLOOM_FILTER || "0x",
     revocationRegistry: process.env.NEXT_PUBLIC_REVOCATION_REGISTRY || "0x",
     validatorConsensus: process.env.NEXT_PUBLIC_VALIDATOR_CONSENSUS || "0x",

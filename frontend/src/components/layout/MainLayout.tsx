@@ -24,7 +24,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           >
             <Shield className="w-5 h-5 text-purple-400" />
             <span className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Sajjan
+              BC-CVS
             </span>
           </motion.div>
           <motion.div

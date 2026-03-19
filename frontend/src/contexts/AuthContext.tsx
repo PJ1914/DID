@@ -171,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       // Generate challenge message
-      const message = `Sign this message to authenticate with Sajjan\n\nAddress: ${address}\nTimestamp: ${Date.now()}`
+      const message = `Sign this message to authenticate with BC-CVS\n\nAddress: ${address}\nTimestamp: ${Date.now()}`
 
       // Request wallet signature
       await signMessageAsync({ message })
